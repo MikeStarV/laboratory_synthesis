@@ -1,0 +1,54 @@
+# Виртуальные окружения Python
+venv/
+.venv/
+**/venv/
+
+# Python
+__pycache__/
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Секретные настройки
+.env
+.env.*
+!.env.example
+
+# Редакторы
+.vscode/
+.idea/
+
+# Системные файлы
+.DS_Store
+Thumbs.db
+
+# Локальные данные
+*.log
+*.db
+
+# Архивы исходников и файлы переноса изменений
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.patch
+*.bundle
+laboratory_syntheses/^C
+
+# Локальные медиа, загруженные пользователем
+uploads/
+
+# Материалы отчётов
+*.doc
+*.docx
+*.pdf
+*.ppt
+*.pptx
+*.mdj
+*.drawio
+*.puml
+*.uml
+docs/
+reports/
+screenshots/
+postman/
