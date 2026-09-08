@@ -1,0 +1,292 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Inter', 'Segoe UI', sans-serif;
+    background: #0D1B2A;
+    color: #E0E1DD;
+    max-width: 375px;
+    margin: 0 auto;
+    min-height: 100vh;
+    position: relative;
+}
+
+.app-screen { padding-bottom: 60px; min-height: 100vh; }
+
+/* ---------- ЛЕНТА ---------- */
+.feed-screen {
+    position: relative;
+    height: calc(100vh - 60px);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+}
+.feed-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; }
+
+.feed-scrim {
+    position: relative;
+    z-index: 1;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.35) 60%, rgba(0,0,0,0) 100%);
+}
+
+.details-text-group { display: flex; flex-direction: column; gap: 4px; }
+.feed-title { font-size: 20px; font-weight: 700; color: #FFFFFF; line-height: 24px; }
+
+.feed-description summary {
+    cursor: pointer;
+    list-style: none;
+    color: #778DA9;
+    font-size: 13px;
+    font-weight: 500;
+}
+.feed-description summary::-webkit-details-marker { display: none; }
+.feed-description summary::after { content: " ▼"; }
+.feed-description[open] summary::after { content: " ▲"; }
+.feed-description p { margin-top: 8px; font-size: 13px; color: #E0E1DD; line-height: 1.4; }
+
+.chips-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+    background: rgba(255,255,255,0.15);
+    border-radius: 100px;
+    padding: 6px 10px;
+    font-size: 11px;
+    font-weight: 500;
+    color: #FFFFFF;
+}
+
+.action-row { display: flex; justify-content: space-between; align-items: center; }
+.likes { display: flex; align-items: center; gap: 6px; color: #FFFFFF; font-size: 14px; font-weight: 600; }
+.likes svg { width: 18px; height: 18px; stroke: #FFFFFF; fill: none; stroke-width: 2; }
+
+.next-button {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 10px 16px;
+    background: #415A77;
+    border-radius: 100px;
+    color: #E0E1DD;
+    font-size: 13px;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+/* ---------- ЧЕРНОВИК (ГЛАВНАЯ СТРАНИЦА) ---------- */
+.draft-screen {
+    padding: 0px;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+.draft-header {
+    font-size: 22px;
+    font-weight: 700;
+    color: #E0E1DD;
+    padding: 12px 20px;
+}
+
+/* Превьюшки */
+.preview-row {
+    display: flex;
+    gap: 12px;
+    padding: 0 20px;
+}
+.media-preview {
+    flex: 1;
+    height: 90px;
+    background: #1B263B;
+    border: 1px solid #415A77;
+    border-radius: 8px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    color: #778DA9;
+    font-size: 11px;
+    font-weight: 600;
+}
+.media-preview img, .media-preview video { width: 100%; height: 100%; object-fit: cover; }
+.media-preview svg { width: 24px; height: 24px; stroke: #778DA9; fill: none; stroke-width: 2; }
+
+/* Форма */
+form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 0 20px 20px;
+}
+
+.field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.field-group label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #778DA9;
+}
+
+/* ПОЛЯ ВВОДА — ТОЧНО КАК В FIGMA */
+.field-group input,
+.field-group textarea {
+    background: #1B263B;
+    border: 1px solid #415A77;
+    border-radius: 6px;
+    padding: 10px;
+    color: #E0E1DD;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;          /* КАК В FIGMA */
+    font-weight: 400;
+    width: 100%;
+    height: 38px;             /* ФИКСИРОВАННАЯ ВЫСОТА КАК В FIGMA */
+    box-sizing: border-box;
+    outline: none;
+}
+
+.field-group textarea {
+    height: 80px;             /* КАК В FIGMA */
+    resize: none;
+    line-height: 16px;
+}
+
+/* Ряд с двумя полями */
+.numbers-row {
+    display: flex;
+    gap: 12px;
+}
+.numbers-row .field-group {
+    flex: 1;
+}
+
+/* Узкое поле для массы реагента */
+.numbers-row .field-narrow {
+    flex: 0 0 94px;
+}
+
+/* Поле "Мол. масса" занимает всё остальное */
+.numbers-row .field-wide {
+    flex: 1;
+}
+
+/* КНОПКА СОХРАНИТЬ — КАК В FIGMA */
+.save-button {
+    width: 100%;
+    height: 44px;             /* ВЫСОТА КАК В FIGMA */
+    background: #778DA9;
+    border: none;
+    border-radius: 6px;
+    color: #0D1B2A;
+    font-size: 14px;
+    font-weight: 700;
+    font-family: 'Inter', sans-serif;
+    cursor: pointer;
+    margin-top: 4px;
+}
+.save-button:hover {
+    background: #8A9FB5;
+}
+
+/* ---------- КАТАЛОГ ---------- */
+.catalog-screen { padding: 12px 20px 20px; }
+.catalog-header { font-size: 22px; font-weight: 700; color: #E0E1DD; padding: 8px 0 16px; }
+
+.search-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #1B263B;
+    border: 1px solid #415A77;
+    border-radius: 100px;
+    padding: 8px 12px;
+    margin-bottom: 16px;
+}
+.search-bar svg { width: 16px; height: 16px; stroke: #778DA9; fill: none; stroke-width: 2; flex-shrink: 0; }
+.search-bar input {
+    border: none;
+    background: transparent;
+    outline: none;
+    color: #E0E1DD;
+    font-size: 13px;
+    font-family: 'Inter', sans-serif;
+    width: 100%;
+}
+.search-bar input::placeholder { color: #778DA9; }
+.search-bar button {
+    background: #415A77;
+    border: none;
+    color: #E0E1DD;
+    border-radius: 100px;
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.catalog-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.catalog-card {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    background: #1B263B;
+    border-radius: 12px;
+    padding: 8px;
+}
+.card-thumb { width: 100%; aspect-ratio: 16/10; object-fit: cover; border-radius: 8px; margin-bottom: 8px; }
+
+.card-info-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.card-title { font-size: 13px; font-weight: 700; color: #E0E1DD; }
+
+.yield-badge {
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 800;
+    color: #0D1B2A;
+    flex-shrink: 0;
+}
+
+.card-reagent { font-size: 11px; color: #778DA9; }
+
+/* ---------- НИЖНЯЯ НАВИГАЦИЯ ---------- */
+.bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 375px;
+    height: 60px;
+    background: #1B263B;
+    border-top: 1px solid rgba(65,90,119,0.2);
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 0 24px;
+}
+.nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    text-decoration: none;
+    color: #778DA9;
+    font-size: 11px;
+    font-weight: 500;
+}
+.nav-item svg { width: 20px; height: 20px; stroke: #778DA9; fill: none; stroke-width: 2; }
+.nav-item.active { color: #415A77; font-weight: 700; }
+.nav-item.active svg { stroke: #415A77; }

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Каталог синтезов{% endblock %}
+{% block content %}
+<div class="catalog-screen">
+    <h2 class="catalog-header">Каталог синтезов</h2>
+
+    <form class="search-bar" method="get" action="/synthesis-catalog">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="number" step="0.01" name="reagent_mass" placeholder="Мин. масса реагента, г"
+               value="{{ reagent_mass_filter if reagent_mass_filter is not none else '' }}">
+        <button type="submit">Фильтр</button>
+    </form>
+
+    <div class="catalog-grid">
+        {% for card in cards %}
+        <a class="catalog-card" href="/synthesis-feed/{{ card.id }}">
+            <img class="card-thumb" src="{{ card.image_url }}" alt="{{ card.name }}">
+            <div class="card-info-row">
+                <span class="card-title">{{ card.name }}</span>
+                <span class="yield-badge" style="background: {{ card.badge_color }};">{{ card.reference_yield_percent | round | int }}%</span>
+            </div>
+            <div class="card-reagent">Реагент: {{ card.reagent_name }}</div>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
