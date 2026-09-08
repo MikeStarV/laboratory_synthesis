@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Черновик синтеза{% endblock %}
+{% block content %}
+<div class="draft-screen">
+    <h2 class="draft-header">Черновик синтеза</h2>
+
+    <div class="preview-row">
+        <div class="media-preview">
+            <img src="{{ image_url }}" alt="preview">
+        </div>
+        <div class="media-preview">
+            <video src="{{ video_url }}" controls muted></video>
+        </div>
+    </div>
+
+    <form onsubmit="return false;" style="display:flex; flex-direction:column; gap:16px;">
+        <div class="field-group">
+            <label>Название синтеза</label>
+            <input type="text" value="{{ synthesis.name }}">
+        </div>
+
+        <div class="field-group">
+            <label>Исходный реагент</label>
+            <input type="text" value="{{ synthesis.reagentName }}">
+        </div>
+
+        <div class="field-group">
+            <label>Продукт реакции</label>
+            <input type="text" value="{{ synthesis.productName }}">
+        </div>
+
+         <div class="numbers-row">
+            <div class="field-group field-narrow">
+                <label>Масса реагента, г</label>
+                <input type="number" step="0.01" value="{{ synthesis.reagentMass }}">
+            </div>
+            <div class="field-group field-wide">
+                <label>Мол. масса, г/моль</label>
+                <input type="number" step="0.01" value="{{ synthesis.molarMassReagent }}">
+            </div>
+        </div>
+
+        <div class="field-group">
+            <label>Молярная масса продукта, г/моль</label>
+            <input type="number" step="0.01" value="{{ synthesis.molarMassProduct }}">
+        </div>
+
+        <div class="field-group">
+            <label>Эталонный % выхода</label>
+            <input type="number" step="0.01" value="{{ synthesis.referenceYieldPercent }}">
+        </div>
+
+        <div class="field-group">
+            <label>Описание методики</label>
+            <textarea>{{ synthesis.description }}</textarea>
+        </div>
+
+        <button type="button" class="save-button">Сохранить</button>
+    </form>
+</div>
+{% endblock %}
