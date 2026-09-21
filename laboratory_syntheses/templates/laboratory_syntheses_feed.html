@@ -5,6 +5,10 @@
 {% endblock %}
 
 {% block content %}
+{% set short_description =
+    laboratory_synthesis.laboratory_synthesis_description.split('.')[0]
+%}
+
 <section class="feed-screen">
     <video
         class="feed-video"
@@ -21,14 +25,19 @@
     <div class="feed-scrim">
         <div class="feed-actions">
             <span class="chip">
-                {{ laboratory_synthesis.laboratory_synthesis_duration_minutes }} мин
+                {{ laboratory_synthesis.laboratory_synthesis_duration_minutes }}
+                мин
             </span>
 
             <span class="chip">
-                {{ laboratory_synthesis.laboratory_synthesis_temperature_celsius | round(1) }} °C
+                {{ laboratory_synthesis.laboratory_synthesis_temperature_celsius | round(1) }}
+                °C
             </span>
 
-            <span class="likes" aria-label="Количество лайков">
+            <span
+                class="likes"
+                aria-label="Количество лайков"
+            >
                 ♡ {{ laboratory_synthesis_likes }}
             </span>
 
@@ -49,13 +58,87 @@
             {{ laboratory_synthesis.laboratory_synthesis_name }}
         </h1>
 
-        <details class="feed-description">
-            <summary>Описание</summary>
+        <div class="feed-description">
+            <p
+                id="short-description"
+                class="feed-description-text"
+            >
+                {{ short_description }}.
+            </p>
 
-            <p>
+            <p
+                id="full-description"
+                class="feed-description-text"
+                hidden
+            >
                 {{ laboratory_synthesis.laboratory_synthesis_description }}
             </p>
-        </details>
+
+            <button
+                id="description-toggle"
+                class="description-toggle"
+                type="button"
+                aria-expanded="false"
+            >
+                Ещё
+            </button>
+        </div>
     </div>
 </section>
-{% endblock %}
+
+<style>
+    .feed-description {
+        display: flex;
+        align-items: flex-end;
+        gap: 6px;
+    }
+
+    .feed-description-text {
+        margin: 0;
+        line-height: 1.4;
+    }
+
+    .description-toggle {
+        flex-shrink: 0;
+        padding: 0;
+        border: 0;
+
+        color: #ff5e22;
+        background: transparent;
+
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+    }
+</style>
+
+<script>
+    const shortDescription = document.getElementById(
+        "short-description"
+    );
+
+    const fullDescription = document.getElementById(
+        "full-description"
+    );
+
+    const descriptionToggle = document.getElementById(
+        "description-toggle"
+    );
+
+    descriptionToggle.addEventListener("click", () => {
+        const expanded =
+            descriptionToggle.getAttribute("aria-expanded") === "true";
+
+        shortDescription.hidden = !expanded;
+        fullDescription.hidden = expanded;
+
+        descriptionToggle.setAttribute(
+            "aria-expanded",
+            String(!expanded)
+        );
+
+        descriptionToggle.textContent =
+            expanded ? "Ещё" : "Скрыть";
+    });
+</script>
+{% endblock %}Ы
