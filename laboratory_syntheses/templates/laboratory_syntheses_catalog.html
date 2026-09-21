@@ -3,6 +3,15 @@
 {% block title %}Каталог синтезов{% endblock %}
 
 {% block content %}
+{% set duration_value = laboratory_synthesis_max_duration
+    if laboratory_synthesis_max_duration is not none
+    else 90
+%}
+
+{% if duration_value > 90 %}
+    {% set duration_value = 90 %}
+{% endif %}
+
 <section class="catalog-screen">
     <h1 class="catalog-header">Каталог синтезов</h1>
 
@@ -11,19 +20,36 @@
         method="get"
         action="/laboratory_syntheses"
     >
-        <label for="duration">Длительность до, мин</label>
+        <div class="duration-filter">
+            <label for="duration">
+                Максимальная длительность:
+                <output id="duration-value" for="duration">
+                    {{ duration_value }}
+                </output>
+                мин
+            </label>
 
-        <input
-            id="duration"
-            type="number"
-            min="0"
-            max="240"
-            name="laboratory_synthesis_max_duration"
-            value="{{ laboratory_synthesis_max_duration if laboratory_synthesis_max_duration is not none else '' }}"
-        >
+            <input
+                id="duration"
+                class="duration-slider"
+                type="range"
+                min="0"
+                max="90"
+                step="5"
+                name="laboratory_synthesis_max_duration"
+                value="{{ duration_value }}"
+            >
+        </div>
 
-        <button type="submit">Найти</button>
-        <a href="/laboratory_syntheses">Сбросить</a>
+        <div class="filter-actions">
+            <button type="submit">
+                Применить
+            </button>
+
+            <a href="/laboratory_syntheses">
+                Сбросить
+            </a>
+        </div>
     </form>
 
     <div class="catalog-grid">
@@ -44,11 +70,15 @@
             </h2>
 
             <p class="card-reagent">
-                {{ laboratory_synthesis.laboratory_synthesis_duration_minutes }} мин
+                {{ laboratory_synthesis.laboratory_synthesis_duration_minutes }}
+                мин
             </p>
 
             <p aria-label="Количество лайков">
-                ♡ {{ laboratory_syntheses_likes[laboratory_synthesis.laboratory_synthesis_id] }}
+                ♡
+                {{ laboratory_syntheses_likes[
+                    laboratory_synthesis.laboratory_synthesis_id
+                ] }}
             </p>
         </a>
         {% else %}
@@ -58,4 +88,13 @@
         {% endfor %}
     </div>
 </section>
+
+<script>
+    const durationSlider = document.getElementById("duration");
+    const durationValue = document.getElementById("duration-value");
+
+    durationSlider.addEventListener("input", () => {
+        durationValue.textContent = durationSlider.value;
+    });
+</script>
 {% endblock %}
