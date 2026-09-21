@@ -1,0 +1,61 @@
+{% extends "laboratory_syntheses_base.html" %}
+
+{% block title %}
+{{ laboratory_synthesis.laboratory_synthesis_name }}
+{% endblock %}
+
+{% block content %}
+<section class="feed-screen">
+    <video
+        class="feed-video"
+        src="http://localhost:9000/synthesis-media/{{ laboratory_synthesis.laboratory_synthesis_video_key }}"
+        poster="http://localhost:9000/synthesis-media/{{ laboratory_synthesis.laboratory_synthesis_image_key }}"
+        autoplay
+        muted
+        loop
+        playsinline
+        preload="metadata"
+        aria-label="{{ laboratory_synthesis.laboratory_synthesis_name }}"
+    ></video>
+
+    <div class="feed-scrim">
+        <div class="feed-actions">
+            <span class="chip">
+                {{ laboratory_synthesis.laboratory_synthesis_duration_minutes }} мин
+            </span>
+
+            <span class="chip">
+                {{ laboratory_synthesis.laboratory_synthesis_temperature_celsius | round(1) }} °C
+            </span>
+
+            <span class="likes" aria-label="Количество лайков">
+                ♡ {{ laboratory_synthesis_likes }}
+            </span>
+
+            <a
+                class="next-button"
+                href="/laboratory_syntheses/feed/{{ laboratory_synthesis.laboratory_synthesis_id }}?next=true"
+            >
+                Следующий ▶
+            </a>
+        </div>
+
+        <p>
+            {{ laboratory_synthesis_position }} /
+            {{ laboratory_syntheses_count }}
+        </p>
+
+        <h1 class="feed-title">
+            {{ laboratory_synthesis.laboratory_synthesis_name }}
+        </h1>
+
+        <details class="feed-description">
+            <summary>Описание</summary>
+
+            <p>
+                {{ laboratory_synthesis.laboratory_synthesis_description }}
+            </p>
+        </details>
+    </div>
+</section>
+{% endblock %}

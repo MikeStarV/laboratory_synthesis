@@ -1,0 +1,23 @@
+{% extends "laboratory_syntheses_base.html" %}
+{% block title %}Черновик синтеза{% endblock %}
+{% block content %}
+<section class="draft-screen">
+<h1 class="draft-header">Черновик синтеза</h1>
+<div class="draft-fields">
+<div class="preview-row">
+<div class="field-group"><label for="image">Изображение</label>
+<img class="draft-image" src="{{ laboratory_synthesis_media_url(laboratory_synthesis.laboratory_synthesis_image_key) }}" alt="{{ laboratory_synthesis.laboratory_synthesis_name }}">
+<input id="image" type="file" accept="image/*"></div>
+<div class="field-group"><label for="video">Видео</label>
+<video class="draft-video" src="{{ laboratory_synthesis_media_url(laboratory_synthesis.laboratory_synthesis_video_key) }}" poster="{{ laboratory_synthesis_media_url(laboratory_synthesis.laboratory_synthesis_image_key) }}" controls playsinline muted preload="metadata"></video>
+<input id="video" type="file" accept="video/*"></div>
+</div>
+<div class="field-group"><label for="name">Название синтеза</label><input id="name" maxlength="120" value="{{ laboratory_synthesis.laboratory_synthesis_name }}"></div>
+<div class="numbers-row">
+<div class="field-group"><label for="duration">Длительность, мин</label><input id="duration" type="number" min="1" max="240" value="{{ laboratory_synthesis.laboratory_synthesis_duration_minutes }}"></div>
+<div class="field-group"><label for="temperature">Температура, °C</label><input id="temperature" type="number" min="-273.15" step="any" value="{{ laboratory_synthesis.laboratory_synthesis_temperature_celsius }}"></div>
+</div>
+<div class="field-group"><label for="description">Описание</label><textarea id="description">{{ laboratory_synthesis.laboratory_synthesis_description }}</textarea></div>
+<p class="draft-note">Черновик можно заполнить. Сохранение и загрузка файлов пока недоступны.</p>
+</div></section>
+{% endblock %}

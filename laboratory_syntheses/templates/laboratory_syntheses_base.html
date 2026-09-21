@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>{% block title %}Лабораторные синтезы{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/laboratory_syntheses/static/laboratory_syntheses.css?v=tcht-dark-form-2">
+</head>
+<body>
+    <main class="app-screen">
+        {% block content %}{% endblock %}
+    </main>
+
+    <nav class="bottom-nav">
+        <a href="/laboratory_syntheses/feed" class="nav-item {% if laboratory_syntheses_active_page == 'feed' %}active{% endif %}">
+            <svg viewBox="0 0 24 24"><path d="M9 3h6l1 6 3 8a2 2 0 0 1-2 3H7a2 2 0 0 1-2-3l3-8z"/></svg>
+            <span>Лента</span>
+        </a>
+        <a href="/laboratory_syntheses/draft" class="nav-item {% if laboratory_syntheses_active_page == 'draft' %}active{% endif %}">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+            <span>Добавить</span>
+        </a>
+        <a href="/laboratory_syntheses" class="nav-item {% if laboratory_syntheses_active_page == 'catalog' %}active{% endif %}">
+            <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+            <span>Каталог</span>
+        </a>
+    </nav>
+</body>
+</html>
