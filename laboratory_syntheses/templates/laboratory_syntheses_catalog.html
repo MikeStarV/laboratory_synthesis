@@ -1,0 +1,61 @@
+{% extends "laboratory_syntheses_base.html" %}
+
+{% block title %}Каталог синтезов{% endblock %}
+
+{% block content %}
+<section class="catalog-screen">
+    <h1 class="catalog-header">Каталог синтезов</h1>
+
+    <form
+        class="search-bar"
+        method="get"
+        action="/laboratory_syntheses"
+    >
+        <label for="duration">Длительность до, мин</label>
+
+        <input
+            id="duration"
+            type="number"
+            min="0"
+            max="240"
+            name="laboratory_synthesis_max_duration"
+            value="{{ laboratory_synthesis_max_duration if laboratory_synthesis_max_duration is not none else '' }}"
+        >
+
+        <button type="submit">Найти</button>
+        <a href="/laboratory_syntheses">Сбросить</a>
+    </form>
+
+    <div class="catalog-grid">
+        {% for laboratory_synthesis in laboratory_syntheses %}
+        <a
+            class="catalog-card"
+            href="/laboratory_syntheses/feed/{{ laboratory_synthesis.laboratory_synthesis_id }}"
+        >
+            <img
+                class="card-thumb"
+                src="http://localhost:9000/synthesis-media/{{ laboratory_synthesis.laboratory_synthesis_image_key }}"
+                alt="{{ laboratory_synthesis.laboratory_synthesis_name }}"
+                loading="lazy"
+            >
+
+            <h2 class="card-title">
+                {{ laboratory_synthesis.laboratory_synthesis_name }}
+            </h2>
+
+            <p class="card-reagent">
+                {{ laboratory_synthesis.laboratory_synthesis_duration_minutes }} мин
+            </p>
+
+            <p aria-label="Количество лайков">
+                ♡ {{ laboratory_syntheses_likes[laboratory_synthesis.laboratory_synthesis_id] }}
+            </p>
+        </a>
+        {% else %}
+        <p class="empty-state">
+            Синтезы с такой длительностью не найдены.
+        </p>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}
