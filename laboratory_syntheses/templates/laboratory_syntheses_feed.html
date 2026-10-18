@@ -23,12 +23,6 @@
             <p class="feed-description-full">{{ description }}</p>
         </details>
         {% endif %}
-        {% if media.credit %}
-        <p class="media-credit">
-            <a href="{{ media.credit.source }}" target="_blank" rel="noopener">Фото: {{ media.credit.author }}</a>
-            · <a href="{{ media.credit.license_url }}" target="_blank" rel="noopener">{{ media.credit.license }}</a>
-        </p>
-        {% endif %}
     </div>
     <aside class="feed-sidebar" aria-label="Параметры синтеза">
         <span class="feed-chip"><b>{{ laboratory_synthesis.laboratory_synthesis_duration_minutes }}</b><small>мин</small></span>
