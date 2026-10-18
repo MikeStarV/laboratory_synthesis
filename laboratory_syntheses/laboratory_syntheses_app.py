@@ -5,10 +5,9 @@ from fastapi import Depends, FastAPI, Form, HTTPException, Query, Request
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .laboratory_syntheses_config import laboratory_syntheses_settings
 from .laboratory_syntheses_api import (
     laboratory_syntheses_api,
     laboratory_synthesis_users_api,
@@ -24,20 +23,14 @@ from .laboratory_syntheses_database_models import (
     LaboratorySynthesisLike,
     LaboratorySynthesisStatus,
 )
-from .laboratory_syntheses_media import LABORATORY_SYNTHESES_DIRECTORY
-
-
-LABORATORY_SYNTHESES_MINIO_MEDIA_URL = (
-    f"{laboratory_syntheses_settings.MINIO_ENDPOINT.rstrip('/')}"
-    f"/{laboratory_syntheses_settings.MINIO_BUCKET}"
-)
-
-LABORATORY_SYNTHESES_DEFAULT_IMAGE_URL = (
-    f"{LABORATORY_SYNTHESES_MINIO_MEDIA_URL}/ether_synthesis.jpg"
-)
-
-LABORATORY_SYNTHESES_DEFAULT_VIDEO_URL = (
-    f"{LABORATORY_SYNTHESES_MINIO_MEDIA_URL}/ether_synthesis.mp4"
+from .laboratory_syntheses_media import (
+    LABORATORY_SYNTHESES_DIRECTORY,
+    LABORATORY_SYNTHESES_DEFAULT_IMAGE_URL,
+    LABORATORY_SYNTHESES_DEFAULT_VIDEO_URL,
+    laboratory_synthesis_media_url,
+    get_laboratory_synthesis_display_media,
+    resolve_laboratory_synthesis_media,
+    resolve_laboratory_syntheses_media,
 )
 
 
@@ -85,7 +78,7 @@ async def laboratory_syntheses_catalog(
     database_session: LaboratorySynthesesDatabaseSession,
     laboratory_synthesis_max_duration: Annotated[
         int | None,
-        Query(ge=1, le=90),
+        Query(ge=0, le=90),
     ] = None,
 ):
     laboratory_syntheses_query = (
@@ -162,6 +155,7 @@ async def laboratory_syntheses_catalog(
         context={
             "laboratory_syntheses_active_page": "catalog",
             "laboratory_syntheses": laboratory_syntheses,
+            "laboratory_syntheses_display_media": await resolve_laboratory_syntheses_media(laboratory_syntheses),
             "laboratory_syntheses_likes":
                 laboratory_syntheses_likes,
             "laboratory_synthesis_max_duration":
@@ -192,6 +186,7 @@ async def laboratory_syntheses_draft(
         context={
             "laboratory_syntheses_active_page": "draft",
             "laboratory_synthesis": laboratory_synthesis,
+            "laboratory_synthesis_display_media": await resolve_laboratory_synthesis_media(laboratory_synthesis),
         },
     )
 
@@ -293,12 +288,21 @@ async def laboratory_syntheses_feed(
         )
     )
 
+    laboratory_synthesis_liked = bool(await database_session.scalar(
+        select(func.count()).select_from(LaboratorySynthesisLike).where(
+            LaboratorySynthesisLike.laboratory_synthesis_id == laboratory_synthesis.laboratory_synthesis_id,
+            LaboratorySynthesisLike.laboratory_synthesis_user_id
+            == get_laboratory_synthesis_current_user().laboratory_synthesis_user_id,
+        )
+    ))
     return laboratory_syntheses_templates.TemplateResponse(
         request=request,
         name="laboratory_syntheses_feed.html",
         context={
             "laboratory_syntheses_active_page": "feed",
             "laboratory_synthesis": laboratory_synthesis,
+            "laboratory_synthesis_display_media": await resolve_laboratory_synthesis_media(laboratory_synthesis),
+            "laboratory_synthesis_liked": laboratory_synthesis_liked,
             "laboratory_synthesis_likes":
                 laboratory_synthesis_likes or 0,
             "laboratory_synthesis_position":
@@ -334,10 +338,10 @@ async def laboratory_syntheses_create_draft(
             laboratory_synthesis_description=None,
             laboratory_synthesis_status=LaboratorySynthesisStatus.DRAFT,
             laboratory_synthesis_image_url=(
-                LABORATORY_SYNTHESES_DEFAULT_IMAGE_URL
+                laboratory_synthesis_media_url("unavailable_laboratory_synthesis_image.jpg")
             ),
             laboratory_synthesis_video_url=(
-                LABORATORY_SYNTHESES_DEFAULT_VIDEO_URL
+                laboratory_synthesis_media_url("unavailable_laboratory_synthesis_video.mp4")
             ),
             laboratory_synthesis_duration_minutes=None,
             laboratory_synthesis_temperature_celsius=None,
@@ -368,7 +372,7 @@ async def laboratory_syntheses_publish_draft(
     ],
     laboratory_synthesis_temperature_celsius: Annotated[
         float,
-        Form(ge=-273.15),
+        Form(ge=-273.15, allow_inf_nan=False),
     ],
 ):
     laboratory_synthesis = await database_session.scalar(
@@ -426,27 +430,42 @@ async def laboratory_syntheses_delete(
     laboratory_synthesis_id: int,
     database_session: LaboratorySynthesesDatabaseSession,
 ):
-    synthesis = await database_session.scalar(
-        select(LaboratorySynthesis).where(
-            LaboratorySynthesis.laboratory_synthesis_id == laboratory_synthesis_id,
-            LaboratorySynthesis.laboratory_synthesis_status
-            != LaboratorySynthesisStatus.DELETED,
-        ).with_for_update()
+    """Для ЛР2 удаление выполняется прямым SQL UPDATE, без ORM."""
+    current_user_id = get_laboratory_synthesis_current_user().laboratory_synthesis_user_id
+    parameters = {
+        "laboratory_synthesis_id": laboratory_synthesis_id,
+        "laboratory_synthesis_creator_id": current_user_id,
+    }
+    result = await database_session.execute(
+        text("""
+            UPDATE laboratory_syntheses
+            SET laboratory_synthesis_status = 'deleted'
+            WHERE laboratory_synthesis_id = :laboratory_synthesis_id
+              AND laboratory_synthesis_creator_id = :laboratory_synthesis_creator_id
+              AND laboratory_synthesis_status <> 'deleted'
+        """),
+        parameters,
     )
-    if synthesis is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Лабораторный синтез не найден",
+    if result.rowcount == 0:
+        owner = await database_session.scalar(
+            text("""
+                SELECT laboratory_synthesis_creator_id
+                FROM laboratory_syntheses
+                WHERE laboratory_synthesis_id = :laboratory_synthesis_id
+                  AND laboratory_synthesis_status <> 'deleted'
+            """),
+            {"laboratory_synthesis_id": laboratory_synthesis_id},
         )
-    if synthesis.laboratory_synthesis_creator_id != (
-        get_laboratory_synthesis_current_user().laboratory_synthesis_user_id
-    ):
-        raise HTTPException(403, "Удалять можно только собственные синтезы")
-
-    synthesis.laboratory_synthesis_status = LaboratorySynthesisStatus.DELETED
+        await database_session.rollback()
+        if owner is not None and owner != current_user_id:
+            raise HTTPException(403, "Удалять можно только собственные синтезы")
+        raise HTTPException(404, "Лабораторный синтез не найден")
     await database_session.commit()
+    return RedirectResponse(url="/laboratory_syntheses", status_code=303)
 
-    return RedirectResponse(
-        url="/laboratory_syntheses",
-        status_code=303,
-    )
+
+laboratory_syntheses_templates.env.globals.update({
+    "laboratory_syntheses_database_enabled": True,
+    "laboratory_syntheses_api_enabled": True,
+    "laboratory_syntheses_current_user_id": get_laboratory_synthesis_current_user().laboratory_synthesis_user_id,
+})
