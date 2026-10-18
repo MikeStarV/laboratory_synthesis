@@ -42,45 +42,56 @@
         </div>
 
         <div class="filter-actions">
-            <button type="submit">
+            <button class="theme-button" type="submit">
                 Применить
             </button>
-
-            <a href="/laboratory_syntheses">
-                Сбросить
-            </a>
         </div>
     </form>
 
     <div class="catalog-grid">
         {% for laboratory_synthesis in laboratory_syntheses %}
-        <a
-            class="catalog-card"
-            href="/laboratory_syntheses/feed/{{ laboratory_synthesis.laboratory_synthesis_id }}"
-        >
-            <img
-                class="card-thumb"
-                src="http://localhost:9000/synthesis-media/{{ laboratory_synthesis.laboratory_synthesis_image_key }}"
-                alt="{{ laboratory_synthesis.laboratory_synthesis_name }}"
-                loading="lazy"
+        <article class="catalog-card">
+            <a
+                class="catalog-card-link"
+                href="/laboratory_syntheses/feed/{{ laboratory_synthesis.laboratory_synthesis_id }}"
             >
+                <img
+                    class="card-thumb"
+                    src="{{ laboratory_synthesis.laboratory_synthesis_image_url or laboratory_syntheses_default_image_url }}"
+                    alt="{{ laboratory_synthesis.laboratory_synthesis_name }}"
+                    loading="lazy"
+                >
 
-            <h2 class="card-title">
-                {{ laboratory_synthesis.laboratory_synthesis_name }}
-            </h2>
+                <h2 class="card-title">
+                    {{ laboratory_synthesis.laboratory_synthesis_name }}
+                </h2>
 
-            <p class="card-reagent">
-                {{ laboratory_synthesis.laboratory_synthesis_duration_minutes }}
-                мин
-            </p>
+                <p class="card-reagent">
+                    {{ laboratory_synthesis.laboratory_synthesis_duration_minutes }}
+                    мин
+                </p>
 
-            <p aria-label="Количество лайков">
-                ♡
-                {{ laboratory_syntheses_likes[
-                    laboratory_synthesis.laboratory_synthesis_id
-                ] }}
-            </p>
-        </a>
+                <p aria-label="Количество лайков">
+                    ♡
+                    {{ laboratory_syntheses_likes[
+                        laboratory_synthesis.laboratory_synthesis_id
+                    ] }}
+                </p>
+            </a>
+
+            <form
+                class="catalog-delete-form"
+                method="post"
+                action="/laboratory_syntheses/{{ laboratory_synthesis.laboratory_synthesis_id }}/delete"
+            >
+                <button
+                    class="theme-button catalog-delete-button"
+                    type="submit"
+                >
+                    Удалить
+                </button>
+            </form>
+        </article>
         {% else %}
         <p class="empty-state">
             Синтезы с такой длительностью не найдены.

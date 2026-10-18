@@ -242,7 +242,7 @@
     <video
         id="feed-video"
         class="feed-video"
-        poster="http://localhost:9000/synthesis-media/{{ laboratory_synthesis.laboratory_synthesis_image_key }}"
+        poster="{{ laboratory_synthesis.laboratory_synthesis_image_url or laboratory_syntheses_default_image_url }}"
         autoplay
         muted
         loop
@@ -251,7 +251,7 @@
         aria-label="{{ laboratory_synthesis.laboratory_synthesis_name }}"
     >
         <source
-            src="http://localhost:9000/synthesis-media/{{ laboratory_synthesis.laboratory_synthesis_video_key }}"
+            src="{{ laboratory_synthesis.laboratory_synthesis_video_url or laboratory_syntheses_default_video_url }}"
             type="video/mp4"
         >
     </video>
