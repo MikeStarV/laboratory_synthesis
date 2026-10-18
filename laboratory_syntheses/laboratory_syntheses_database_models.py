@@ -140,6 +140,7 @@ class LaboratorySynthesis(LaboratorySynthesesDatabaseModel):
             "uq_laboratory_synthesis_draft_per_user",
             "laboratory_synthesis_creator_id",
             unique=True,
+            sqlite_where=text("laboratory_synthesis_status = 'draft'"),
             postgresql_where=text(
                 "laboratory_synthesis_status = 'draft'"
             ),
