@@ -1,23 +1,75 @@
 {% extends "laboratory_syntheses_base.html" %}
-{% block title %}Черновик синтеза{% endblock %}
+{% block title %}Добавление синтеза{% endblock %}
 {% block content %}
+{% set api = laboratory_syntheses_api_enabled %}
+{% set database = laboratory_syntheses_database_enabled %}
+{% set synthesis = laboratory_synthesis %}
+{% set media = laboratory_synthesis_display_media %}
 <section class="draft-screen">
-<h1 class="draft-header">Черновик синтеза</h1>
-<div class="draft-fields">
-<div class="preview-row">
-<div class="field-group"><label for="image">Изображение</label>
-<img class="draft-image" src="{{ laboratory_synthesis_media_url(laboratory_synthesis.laboratory_synthesis_image_key) }}" alt="{{ laboratory_synthesis.laboratory_synthesis_name }}">
-<input id="image" type="file" accept="image/*"></div>
-<div class="field-group"><label for="video">Видео</label>
-<video class="draft-video" src="{{ laboratory_synthesis_media_url(laboratory_synthesis.laboratory_synthesis_video_key) }}" poster="{{ laboratory_synthesis_media_url(laboratory_synthesis.laboratory_synthesis_image_key) }}" controls playsinline muted preload="metadata"></video>
-<input id="video" type="file" accept="video/*"></div>
-</div>
-<div class="field-group"><label for="name">Название синтеза</label><input id="name" maxlength="120" value="{{ laboratory_synthesis.laboratory_synthesis_name }}"></div>
-<div class="numbers-row">
-<div class="field-group"><label for="duration">Длительность, мин</label><input id="duration" type="number" min="1" max="240" value="{{ laboratory_synthesis.laboratory_synthesis_duration_minutes }}"></div>
-<div class="field-group"><label for="temperature">Температура, °C</label><input id="temperature" type="number" min="-273.15" step="any" value="{{ laboratory_synthesis.laboratory_synthesis_temperature_celsius }}"></div>
-</div>
-<div class="field-group"><label for="description">Описание</label><textarea id="description">{{ laboratory_synthesis.laboratory_synthesis_description }}</textarea></div>
-<p class="draft-note">Черновик можно заполнить. Сохранение и загрузка файлов пока недоступны.</p>
-</div></section>
+    <header class="screen-heading"><p class="eyebrow">Лабораторные синтезы</p>
+        <h1 class="draft-header">{{ 'Черновик синтеза' if synthesis else 'Новый синтез' }}</h1>
+    </header>
+    <form class="draft-fields"
+          {% if database %}
+          method="post"
+          action="{{ '/api/laboratory_syntheses' if api else ('/laboratory_syntheses/draft/publish' if synthesis else '/laboratory_syntheses/draft') }}"
+          {% else %}data-laboratory-preview-only="true"{% endif %}
+          {% if api %}enctype="multipart/form-data" data-laboratory-draft="true" data-laboratory-synthesis-id="{{ synthesis.laboratory_synthesis_id if synthesis else '' }}"{% endif %}>
+        <div class="field-group">
+            <label for="laboratory_synthesis_image">Фото</label>
+            <img class="draft-image" src="{{ media.image_url }}"
+                 alt="{{ synthesis.laboratory_synthesis_name if synthesis else 'Изображение синтеза по умолчанию' }}">
+            {% if api or not database or not synthesis %}
+            <input id="laboratory_synthesis_image" type="file" accept="image/jpeg,image/png,image/webp"
+                   {% if api %}name="laboratory_synthesis_image"{% endif %}
+                   {% if database and not synthesis %}required{% endif %}>
+            {% endif %}
+        </div>
+        <div class="field-group">
+            <label for="laboratory_synthesis_video">Видео</label>
+            <video class="draft-video" src="{{ media.video_url }}" poster="{{ media.image_url }}"
+                   controls playsinline muted preload="metadata" aria-label="Видео синтеза"></video>
+            {% if api or not database or not synthesis %}
+            <input id="laboratory_synthesis_video" type="file" accept="video/mp4,video/webm"
+                   {% if api %}name="laboratory_synthesis_video"{% endif %}
+                   {% if database and not synthesis %}required{% endif %}>
+            {% endif %}
+        </div>
+        <div class="field-group">
+            <label for="laboratory_synthesis_name">Название синтеза</label>
+            <input id="laboratory_synthesis_name" name="laboratory_synthesis_name" maxlength="120"
+                   value="{{ synthesis.laboratory_synthesis_name if synthesis else '' }}"
+                   {% if database and synthesis and not api %}readonly{% endif %} required>
+        </div>
+        {% if synthesis or api or not database %}
+        <div class="field-group">
+            <label for="laboratory_synthesis_description">Описание</label>
+            <textarea id="laboratory_synthesis_description" name="laboratory_synthesis_description"
+                      maxlength="5000" required>{{ synthesis.laboratory_synthesis_description or '' if synthesis else '' }}</textarea>
+        </div>
+        <div class="field-group">
+            <label for="laboratory_synthesis_duration_minutes">Длительность, мин</label>
+            <input id="laboratory_synthesis_duration_minutes" name="laboratory_synthesis_duration_minutes"
+                   type="number" min="1" max="90"
+                   value="{{ synthesis.laboratory_synthesis_duration_minutes if synthesis and synthesis.laboratory_synthesis_duration_minutes is not none else '' }}" required>
+        </div>
+        <div class="field-group">
+            <label for="laboratory_synthesis_temperature_celsius">Температура, °C</label>
+            <input id="laboratory_synthesis_temperature_celsius" name="laboratory_synthesis_temperature_celsius"
+                   type="number" min="-273.15" step="any"
+                   value="{{ synthesis.laboratory_synthesis_temperature_celsius if synthesis and synthesis.laboratory_synthesis_temperature_celsius is not none else '' }}" required>
+        </div>
+        {% endif %}
+        {% if not database %}
+        <p class="draft-note">В ЛР1 можно заполнить поля. Сохранение появится в следующей работе.</p>
+        {% elif api %}
+        <p class="form-error" role="alert" hidden></p>
+        <button class="theme-button" type="submit" name="laboratory_synthesis_action" value="save">Сохранить черновик</button>
+        {% if synthesis %}<button class="theme-button" type="submit" name="laboratory_synthesis_action" value="publish">Опубликовать</button>{% endif %}
+        {% else %}
+        {% if not synthesis %}<p class="draft-note">В ЛР2 выбираются файлы, а сервер пока использует медиа по умолчанию.</p>{% endif %}
+        <button class="theme-button" type="submit">{{ 'Опубликовать' if synthesis else 'Далее' }}</button>
+        {% endif %}
+    </form>
+</section>
 {% endblock %}

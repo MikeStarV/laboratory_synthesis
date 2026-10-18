@@ -7,7 +7,15 @@ from fastapi.templating import Jinja2Templates
 
 from .laboratory_syntheses_data import LABORATORY_SYNTHESES
 from .laboratory_syntheses_models import LaboratorySynthesisStatus
-from .laboratory_syntheses_media import LABORATORY_SYNTHESES_DIRECTORY, laboratory_synthesis_media_url
+from .laboratory_syntheses_media import (
+    LABORATORY_SYNTHESES_DIRECTORY,
+    LABORATORY_SYNTHESES_DEFAULT_IMAGE_URL,
+    LABORATORY_SYNTHESES_DEFAULT_VIDEO_URL,
+    laboratory_synthesis_media_url,
+    get_laboratory_synthesis_display_media,
+    resolve_laboratory_synthesis_media,
+    resolve_laboratory_syntheses_media,
+)
 
 app = FastAPI(title="Лабораторные синтезы — расчёт выхода продукта", docs_url=None, redoc_url=None, openapi_url=None)
 app.mount("/laboratory_syntheses/static", StaticFiles(directory=LABORATORY_SYNTHESES_DIRECTORY / "static"), name="laboratory_syntheses_static")
@@ -31,7 +39,7 @@ def laboratory_syntheses_home():
 @app.get("/laboratory_syntheses")
 def laboratory_syntheses_catalog(
     request: Request,
-    laboratory_synthesis_max_duration: Annotated[int | None, Query(ge=0, le=240), BeforeValidator(lambda value: None if value == "" else value)] = None,
+    laboratory_synthesis_max_duration: Annotated[int | None, Query(ge=0, le=90), BeforeValidator(lambda value: None if value == "" else value)] = None,
 ):
     laboratory_syntheses = published_laboratory_syntheses()
     if laboratory_synthesis_max_duration is not None:
@@ -40,6 +48,7 @@ def laboratory_syntheses_catalog(
     return laboratory_syntheses_templates.TemplateResponse(request=request, name="laboratory_syntheses_catalog.html", context={
         "laboratory_syntheses_active_page": "catalog",
         "laboratory_syntheses": laboratory_syntheses,
+        "laboratory_syntheses_display_media": {item.laboratory_synthesis_id: get_laboratory_synthesis_display_media(item) for item in laboratory_syntheses},
         "laboratory_syntheses_likes": {laboratory_synthesis.laboratory_synthesis_id: len(laboratory_synthesis.laboratory_synthesis_liked_by_user_ids) for laboratory_synthesis in laboratory_syntheses},
         "laboratory_synthesis_max_duration": laboratory_synthesis_max_duration,
     })
@@ -53,6 +62,7 @@ def laboratory_syntheses_draft(request: Request):
         raise HTTPException(404, "Черновик лабораторного синтеза отсутствует")
     return laboratory_syntheses_templates.TemplateResponse(request=request, name="laboratory_syntheses_draft.html", context={
         "laboratory_syntheses_active_page": "draft", "laboratory_synthesis": laboratory_synthesis,
+        "laboratory_synthesis_display_media": get_laboratory_synthesis_display_media(laboratory_synthesis),
     })
 
 
@@ -77,7 +87,15 @@ def laboratory_syntheses_feed(
     laboratory_synthesis = laboratory_syntheses[laboratory_synthesis_index]
     return laboratory_syntheses_templates.TemplateResponse(request=request, name="laboratory_syntheses_feed.html", context={
         "laboratory_syntheses_active_page": "feed", "laboratory_synthesis": laboratory_synthesis,
+        "laboratory_synthesis_display_media": get_laboratory_synthesis_display_media(laboratory_synthesis),
         "laboratory_synthesis_likes": len(laboratory_synthesis.laboratory_synthesis_liked_by_user_ids),
         "laboratory_synthesis_position": laboratory_synthesis_index + 1,
         "laboratory_syntheses_count": len(laboratory_syntheses),
     })
+
+
+laboratory_syntheses_templates.env.globals.update({
+    "laboratory_syntheses_database_enabled": False,
+    "laboratory_syntheses_api_enabled": False,
+    "laboratory_syntheses_current_user_id": 1,
+})

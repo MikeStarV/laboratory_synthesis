@@ -1,0 +1,42 @@
+{
+  "acetylene_synthesis": {
+    "image": "acetylene_synthesis.jpg",
+    "video": "acetylene_synthesis.mp4",
+    "caption": "Карбид кальция — исходный реагент",
+    "source": "https://commons.wikimedia.org/wiki/File:Cac2.jpg",
+    "author": "Rjb uk at English Wikipedia",
+    "license": "Public domain",
+    "license_url": "https://creativecommons.org/publicdomain/mark/1.0/",
+    "video_note": "Иллюстративный ролик из фотографии; запись опыта не используется. Фото не изменено, в ролик добавлены поля и длительность 3 секунды."
+  },
+  "chloroform_synthesis": {
+    "image": "chloroform_synthesis.jpg",
+    "video": "chloroform_synthesis.mp4",
+    "caption": "Ампула с хлороформом",
+    "source": "https://commons.wikimedia.org/wiki/File:Chloroform_ampoule.jpg",
+    "author": "The Science Museum London",
+    "license": "CC BY 4.0",
+    "license_url": "https://creativecommons.org/licenses/by/4.0",
+    "video_note": "Иллюстративный ролик из фотографии; запись опыта не используется. Фото не изменено, в ролик добавлены поля и длительность 3 секунды."
+  },
+  "ether_synthesis": {
+    "image": "ether_synthesis.jpg",
+    "video": "ether_synthesis.mp4",
+    "caption": "Диэтиловый эфир",
+    "source": "https://commons.wikimedia.org/wiki/File:Diethyl_ether_bottle.jpg",
+    "author": "Fabexplosive",
+    "license": "CC BY-SA 3.0",
+    "license_url": "http://creativecommons.org/licenses/by-sa/3.0/",
+    "video_note": "Иллюстративный ролик из фотографии; запись опыта не используется. Фото не изменено, в ролик добавлены поля и длительность 3 секунды."
+  },
+  "iodoform_synthesis": {
+    "image": "iodoform_synthesis.jpg",
+    "video": "iodoform_synthesis.mp4",
+    "caption": "Кристаллы йодоформа",
+    "source": "https://commons.wikimedia.org/wiki/File:Iodoform2.jpg",
+    "author": "W. Oelen",
+    "license": "CC BY-SA 3.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/3.0",
+    "video_note": "Иллюстративный ролик из фотографии; запись опыта не используется. Фото не изменено, в ролик добавлены поля и длительность 3 секунды."
+  }
+}

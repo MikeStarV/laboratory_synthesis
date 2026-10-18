@@ -15,7 +15,7 @@ class LaboratorySynthesis(BaseModel):
     laboratory_synthesis_id: int = Field(gt=0)
     laboratory_synthesis_name: str = Field(min_length=1, max_length=120)
     laboratory_synthesis_description: str = Field(min_length=1)
-    laboratory_synthesis_duration_minutes: int = Field(gt=0, le=240)
+    laboratory_synthesis_duration_minutes: int = Field(gt=0, le=90)
     laboratory_synthesis_temperature_celsius: float = Field(ge=-273.15)
     laboratory_synthesis_image_key: str
     laboratory_synthesis_video_key: str

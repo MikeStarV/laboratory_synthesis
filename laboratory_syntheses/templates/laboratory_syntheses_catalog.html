@@ -1,100 +1,52 @@
 {% extends "laboratory_syntheses_base.html" %}
-
 {% block title %}Каталог синтезов{% endblock %}
-
 {% block content %}
-{% set duration_value = laboratory_synthesis_max_duration
-    if laboratory_synthesis_max_duration is not none
-    else 90
-%}
-
-{% if duration_value > 90 %}
-    {% set duration_value = 90 %}
-{% endif %}
-
+{% set duration_value = laboratory_synthesis_max_duration if laboratory_synthesis_max_duration is not none else 90 %}
 <section class="catalog-screen">
-    <h1 class="catalog-header">Каталог синтезов</h1>
-
-    <form
-        class="search-bar"
-        method="get"
-        action="/laboratory_syntheses"
-    >
-        <div class="duration-filter">
-            <label for="duration">
-                Максимальная длительность:
-                <output id="duration-value" for="duration">
-                    {{ duration_value }}
-                </output>
-                мин
-            </label>
-
-            <input
-                id="duration"
-                class="duration-slider"
-                type="range"
-                min="0"
-                max="90"
-                step="5"
-                name="laboratory_synthesis_max_duration"
-                value="{{ duration_value }}"
-            >
+    <header class="screen-heading">
+        <p class="eyebrow">Лабораторные синтезы</p>
+        <h1 class="catalog-header">Каталог</h1>
+    </header>
+    <form class="search-bar" method="get" action="/laboratory_syntheses">
+        <label for="duration">Максимальная длительность, мин</label>
+        {% if laboratory_syntheses_api_enabled %}
+        <output class="duration-value" id="duration-value" for="duration">{{ duration_value }}</output>
+        {% endif %}
+        <div class="range-control">
+            <input id="duration" class="duration-slider" type="range" min="0" max="90" step="1"
+                   name="laboratory_synthesis_max_duration" value="{{ duration_value }}"
+                   aria-label="Максимальная длительность от 0 до 90 минут">
+            <div class="range-scale" aria-hidden="true"><span>0</span><span>45</span><span>90</span></div>
         </div>
-
-        <div class="filter-actions">
-            <button type="submit">
-                Применить
-            </button>
-
-            <a href="/laboratory_syntheses">
-                Сбросить
-            </a>
-        </div>
+        <button class="theme-button" type="submit">Применить</button>
     </form>
-
+    <p class="catalog-result">
+        {{ laboratory_syntheses | length }} синтезов
+        {% if laboratory_synthesis_max_duration is not none %} · до {{ laboratory_synthesis_max_duration }} мин{% endif %}
+    </p>
     <div class="catalog-grid">
-        {% for laboratory_synthesis in laboratory_syntheses %}
-        <a
-            class="catalog-card"
-            href="/laboratory_syntheses/feed/{{ laboratory_synthesis.laboratory_synthesis_id }}"
-        >
-            <img
-                class="card-thumb"
-                src="http://localhost:9000/synthesis-media/{{ laboratory_synthesis.laboratory_synthesis_image_key }}"
-                alt="{{ laboratory_synthesis.laboratory_synthesis_name }}"
-                loading="lazy"
-            >
-
-            <h2 class="card-title">
-                {{ laboratory_synthesis.laboratory_synthesis_name }}
-            </h2>
-
-            <p class="card-reagent">
-                {{ laboratory_synthesis.laboratory_synthesis_duration_minutes }}
-                мин
-            </p>
-
-            <p aria-label="Количество лайков">
-                ♡
-                {{ laboratory_syntheses_likes[
-                    laboratory_synthesis.laboratory_synthesis_id
-                ] }}
-            </p>
-        </a>
-        {% else %}
-        <p class="empty-state">
-            Синтезы с такой длительностью не найдены.
-        </p>
-        {% endfor %}
+    {% for laboratory_synthesis in laboratory_syntheses %}
+        {% set media = laboratory_syntheses_display_media[laboratory_synthesis.laboratory_synthesis_id] %}
+        <article class="catalog-card">
+            <a class="catalog-card-link" href="/laboratory_syntheses/feed/{{ laboratory_synthesis.laboratory_synthesis_id }}">
+                <img class="card-thumb" src="{{ media.image_url }}"
+                     alt="{{ media.credit.caption if media.credit else laboratory_synthesis.laboratory_synthesis_name }}"
+                     loading="lazy">
+                <h2 class="card-title">{{ laboratory_synthesis.laboratory_synthesis_name }}</h2>
+                <p class="card-duration">{{ laboratory_synthesis.laboratory_synthesis_duration_minutes }} мин</p>
+                <p class="card-likes" aria-label="Количество лайков">♡ {{ laboratory_syntheses_likes[laboratory_synthesis.laboratory_synthesis_id] }}</p>
+            </a>
+            {% if laboratory_syntheses_database_enabled and laboratory_synthesis.laboratory_synthesis_creator_id == laboratory_syntheses_current_user_id %}
+            <form class="catalog-delete-form" method="post"
+                  action="/laboratory_syntheses/{{ laboratory_synthesis.laboratory_synthesis_id }}/delete"
+                  {% if laboratory_syntheses_api_enabled %}data-laboratory-delete="/api/laboratory_syntheses/{{ laboratory_synthesis.laboratory_synthesis_id }}"{% endif %}>
+                <button class="theme-button theme-button-small" type="submit">Удалить</button>
+            </form>
+            {% endif %}
+        </article>
+    {% else %}
+        <p class="empty-state">Синтезов с такой длительностью нет. Выбери другое значение и нажми «Применить».</p>
+    {% endfor %}
     </div>
 </section>
-
-<script>
-    const durationSlider = document.getElementById("duration");
-    const durationValue = document.getElementById("duration-value");
-
-    durationSlider.addEventListener("input", () => {
-        durationValue.textContent = durationSlider.value;
-    });
-</script>
 {% endblock %}

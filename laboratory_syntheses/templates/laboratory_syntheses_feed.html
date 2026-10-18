@@ -1,333 +1,57 @@
 {% extends "laboratory_syntheses_base.html" %}
-
 {% block title %}{{ laboratory_synthesis.laboratory_synthesis_name }}{% endblock %}
-
 {% block content %}
-<style>
-    html,
-    body {
-        width: 100%;
-        height: 100%;
-        margin: 0;
-        overflow: hidden;
-    }
-
-    .app-screen {
-        height: calc(100dvh - 92px);
-        overflow: hidden;
-    }
-
-    .feed-screen {
-        position: relative;
-        width: 100%;
-        height: 100%;
-        overflow: hidden;
-        color: #ffffff;
-        background: #06171d;
-    }
-
-    .feed-video {
-        position: absolute;
-        inset: 0;
-        display: block;
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        background: #06171d;
-    }
-
-    .feed-overlay {
-        position: absolute;
-        inset: 0;
-        background:
-            linear-gradient(
-                90deg,
-                rgba(2, 13, 18, 0.84) 0%,
-                rgba(2, 13, 18, 0.5) 58%,
-                rgba(2, 13, 18, 0.3) 100%
-            ),
-            linear-gradient(
-                0deg,
-                rgba(0, 0, 0, 0.9) 0%,
-                transparent 60%
-            );
-        pointer-events: none;
-    }
-
-    .feed-content {
-        position: absolute;
-        z-index: 2;
-        right: 185px;
-        bottom: clamp(38px, 8vh, 76px);
-        left: clamp(28px, 6vw, 64px);
-        max-width: 650px;
-    }
-
-    .feed-position {
-        margin: 0 0 12px;
-        color: rgba(255, 255, 255, 0.84);
-        font-size: 17px;
-        font-weight: 600;
-    }
-
-    .feed-title {
-        margin: 0 0 18px;
-        font-size: clamp(38px, 5.6vw, 58px);
-        line-height: 1.08;
-        font-weight: 700;
-        letter-spacing: -1px;
-    }
-
-    .feed-description {
-        margin: 0;
-        max-width: 620px;
-        font-size: clamp(19px, 2.5vw, 24px);
-        line-height: 1.45;
-        font-weight: 500;
-    }
-
-    .feed-description-full {
-        display: none;
-    }
-
-    .feed-description.expanded .feed-description-short {
-        display: none;
-    }
-
-    .feed-description.expanded .feed-description-full {
-        display: inline;
-    }
-
-    .feed-more {
-        margin-left: 8px;
-        padding: 0;
-        border: 0;
-        color: #ff6326;
-        background: transparent;
-        font: inherit;
-        font-weight: 700;
-        cursor: pointer;
-    }
-
-    .feed-more:hover {
-        color: #ff8a5c;
-    }
-
-    .feed-sidebar {
-        position: absolute;
-        z-index: 3;
-        top: 59%;
-        right: 28px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 16px;
-        transform: translateY(-50%);
-    }
-
-    .feed-chip {
-        display: grid;
-        width: 104px;
-        min-height: 58px;
-        padding: 7px 10px;
-        place-items: center;
-        box-sizing: border-box;
-        border: 2px solid rgba(255, 255, 255, 0.45);
-        border-radius: 30px;
-        color: #ffffff;
-        background: rgba(0, 10, 15, 0.86);
-        font-size: 18px;
-        line-height: 1;
-        font-weight: 700;
-        text-align: center;
-        backdrop-filter: blur(8px);
-    }
-
-    .feed-like {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 7px;
-        color: #ffffff;
-    }
-
-    .feed-like-icon {
-        display: grid;
-        width: 70px;
-        height: 70px;
-        place-items: center;
-        border-radius: 50%;
-        background: rgba(0, 10, 15, 0.9);
-        font-size: 42px;
-        line-height: 1;
-    }
-
-    .feed-like-count {
-        font-size: 18px;
-        font-weight: 700;
-    }
-
-    .feed-next {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 7px;
-        color: #ffffff;
-        font-size: 17px;
-        font-weight: 700;
-        text-decoration: none;
-    }
-
-    .feed-next-icon {
-        display: grid;
-        width: 86px;
-        height: 86px;
-        place-items: center;
-        border-radius: 50%;
-        color: #ffffff;
-        background: #ff6326;
-        box-shadow: 0 10px 30px rgba(255, 99, 38, 0.44);
-        font-size: 56px;
-        line-height: 1;
-        transition: transform 0.2s ease, background 0.2s ease;
-    }
-
-    .feed-next:hover .feed-next-icon {
-        background: #ff7a46;
-        transform: scale(1.07);
-    }
-
-    @media (max-width: 600px) {
-        .feed-content {
-            right: 130px;
-            bottom: 30px;
-            left: 22px;
-        }
-
-        .feed-title {
-            font-size: 36px;
-        }
-
-        .feed-description {
-            font-size: 18px;
-        }
-
-        .feed-sidebar {
-            top: 58%;
-            right: 14px;
-            gap: 14px;
-        }
-
-        .feed-chip {
-            width: 96px;
-            min-height: 56px;
-            font-size: 17px;
-        }
-
-        .feed-like-icon {
-            width: 68px;
-            height: 68px;
-            font-size: 40px;
-        }
-
-        .feed-next-icon {
-            width: 80px;
-            height: 80px;
-            font-size: 52px;
-        }
-    }
-</style>
-
+{% set media = laboratory_synthesis_display_media %}
+{% set description = laboratory_synthesis.laboratory_synthesis_description or '' %}
 <section class="feed-screen">
-    <video
-        id="feed-video"
-        class="feed-video"
-        poster="http://localhost:9000/synthesis-media/{{ laboratory_synthesis.laboratory_synthesis_image_key }}"
-        autoplay
-        muted
-        loop
-        playsinline
-        preload="auto"
-        aria-label="{{ laboratory_synthesis.laboratory_synthesis_name }}"
-    >
-        <source
-            src="http://localhost:9000/synthesis-media/{{ laboratory_synthesis.laboratory_synthesis_video_key }}"
-            type="video/mp4"
-        >
+    <video class="feed-video" poster="{{ media.image_url }}" autoplay muted loop playsinline preload="metadata"
+           aria-label="{{ laboratory_synthesis.laboratory_synthesis_name }}">
+        <source src="{{ media.video_url }}" type="{{ media.video_type }}">
     </video>
-
     <div class="feed-overlay"></div>
-
     <div class="feed-content">
-        <p class="feed-position">
-            {{ laboratory_synthesis_position }} / {{ laboratory_syntheses_count }}
+        <p class="feed-position">{{ laboratory_synthesis_position }} / {{ laboratory_syntheses_count }}</p>
+        <h1 class="feed-title">{{ laboratory_synthesis.laboratory_synthesis_name }}</h1>
+        {% if description %}
+        <details class="feed-description">
+            <summary>
+                <span class="feed-description-preview">{{ description }}</span>
+                <span class="theme-button theme-button-small feed-more">
+                    <span class="when-closed">Ещё</span><span class="when-open">Скрыть</span>
+                </span>
+            </summary>
+            <p class="feed-description-full">{{ description }}</p>
+        </details>
+        {% endif %}
+        {% if media.credit %}
+        <p class="media-credit">
+            <a href="{{ media.credit.source }}" target="_blank" rel="noopener">Фото: {{ media.credit.author }}</a>
+            · <a href="{{ media.credit.license_url }}" target="_blank" rel="noopener">{{ media.credit.license }}</a>
         </p>
-
-        <h1 class="feed-title">
-            {{ laboratory_synthesis.laboratory_synthesis_name }}
-        </h1>
-
-        <p class="feed-description" id="feed-description">
-            <span class="feed-description-short">
-                {{ laboratory_synthesis.laboratory_synthesis_description.split('.')[0] }}.
-            </span>
-
-            <span class="feed-description-full">
-                {{ laboratory_synthesis.laboratory_synthesis_description }}
-            </span>
-
-            <button
-                class="feed-more"
-                id="feed-more"
-                type="button"
-                aria-expanded="false"
-            >
-                Ещё
-            </button>
-        </p>
+        {% endif %}
     </div>
-
     <aside class="feed-sidebar" aria-label="Параметры синтеза">
-        <span class="feed-chip">
-            {{ laboratory_synthesis.laboratory_synthesis_duration_minutes }} мин
-        </span>
-
-        <span class="feed-chip">
-            {{ laboratory_synthesis.laboratory_synthesis_temperature_celsius | round(1) }} °C
-        </span>
-
-        <div class="feed-like" aria-label="Количество лайков">
-            <span class="feed-like-icon">♡</span>
-            <span class="feed-like-count">{{ laboratory_synthesis_likes }}</span>
+        <span class="feed-chip"><b>{{ laboratory_synthesis.laboratory_synthesis_duration_minutes }}</b><small>мин</small></span>
+        <span class="feed-chip"><b>{{ laboratory_synthesis.laboratory_synthesis_temperature_celsius | round(1) }}</b><small>°C</small></span>
+        <div class="feed-like">
+            {% if laboratory_syntheses_api_enabled %}
+            <button class="theme-button icon-button feed-like-button" type="button"
+                    aria-label="{{ 'Снять лайк' if laboratory_synthesis_liked else 'Поставить лайк' }}"
+                    aria-pressed="{{ 'true' if laboratory_synthesis_liked else 'false' }}"
+                    data-laboratory-like="/api/laboratory_syntheses/{{ laboratory_synthesis.laboratory_synthesis_id }}/likes">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8z"/></svg>
+            </button>
+            {% else %}
+            <span class="feed-like-static" aria-label="Количество лайков">♡</span>
+            {% endif %}
+            <span class="feed-like-count" data-laboratory-likes-count>{{ laboratory_synthesis_likes }}</span>
         </div>
-
-        <a
-            class="feed-next"
-            href="/laboratory_syntheses/feed/{{ laboratory_synthesis.laboratory_synthesis_id }}?next=true"
-        >
-            <span class="feed-next-icon">›</span>
-            <span>Далее</span>
+        <a class="theme-button icon-button feed-next"
+           href="/laboratory_syntheses/feed/{{ laboratory_synthesis.laboratory_synthesis_id }}?next=true"
+           aria-label="Следующий синтез">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg>
         </a>
+        <span class="feed-next-label">Следующий</span>
     </aside>
 </section>
-
-<script>
-    const description = document.getElementById("feed-description");
-    const moreButton = document.getElementById("feed-more");
-    const feedVideo = document.getElementById("feed-video");
-
-    moreButton.addEventListener("click", function () {
-        const expanded = description.classList.toggle("expanded");
-
-        moreButton.textContent = expanded ? "Скрыть" : "Ещё";
-        moreButton.setAttribute("aria-expanded", String(expanded));
-    });
-
-    feedVideo.addEventListener("canplay", function () {
-        feedVideo.play().catch(function () {
-            feedVideo.muted = true;
-            feedVideo.play();
-        });
-    });
-</script>
 {% endblock %}
