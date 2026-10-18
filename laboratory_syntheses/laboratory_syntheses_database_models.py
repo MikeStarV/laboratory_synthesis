@@ -41,6 +41,11 @@ class LaboratorySynthesisUser(LaboratorySynthesesDatabaseModel):
         unique=True,
     )
 
+    laboratory_synthesis_user_password_hash: Mapped[str | None] = mapped_column(
+        String(256),
+        nullable=True,
+    )
+
     laboratory_syntheses: Mapped[list["LaboratorySynthesis"]] = relationship(
         back_populates="laboratory_synthesis_creator",
     )
@@ -94,6 +99,16 @@ class LaboratorySynthesis(LaboratorySynthesesDatabaseModel):
         nullable=True,
     )
 
+    laboratory_synthesis_image_key: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+
+    laboratory_synthesis_video_key: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+
     laboratory_synthesis_duration_minutes: Mapped[int | None] = mapped_column(
         Integer,
         nullable=True,
@@ -141,6 +156,9 @@ class LaboratorySynthesis(LaboratorySynthesesDatabaseModel):
             "laboratory_synthesis_creator_id",
             unique=True,
             postgresql_where=text(
+                "laboratory_synthesis_status = 'draft'"
+            ),
+            sqlite_where=text(
                 "laboratory_synthesis_status = 'draft'"
             ),
         ),

@@ -29,7 +29,7 @@ alembic_config = context.config
 
 alembic_config.set_main_option(
     "sqlalchemy.url",
-    laboratory_syntheses_settings.database_url,
+    laboratory_syntheses_settings.database_url.replace("%", "%%"),
 )
 
 if alembic_config.config_file_name is not None:

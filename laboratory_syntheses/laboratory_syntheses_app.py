@@ -5,10 +5,17 @@ from fastapi import Depends, FastAPI, Form, HTTPException, Query, Request
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import func, select, text
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .laboratory_syntheses_config import laboratory_syntheses_settings
+from .laboratory_syntheses_api import (
+    laboratory_syntheses_api,
+    laboratory_synthesis_users_api,
+)
+from .laboratory_syntheses_current_user import (
+    get_laboratory_synthesis_current_user,
+)
 from .laboratory_syntheses_database import (
     get_laboratory_syntheses_database_session,
 )
@@ -19,8 +26,6 @@ from .laboratory_syntheses_database_models import (
 )
 from .laboratory_syntheses_media import LABORATORY_SYNTHESES_DIRECTORY
 
-
-LABORATORY_SYNTHESES_CURRENT_USER_ID = 1
 
 LABORATORY_SYNTHESES_MINIO_MEDIA_URL = (
     f"{laboratory_syntheses_settings.MINIO_ENDPOINT.rstrip('/')}"
@@ -38,10 +43,13 @@ LABORATORY_SYNTHESES_DEFAULT_VIDEO_URL = (
 
 app = FastAPI(
     title="Лабораторные синтезы — расчёт выхода продукта",
-    docs_url=None,
+    docs_url="/api/docs",
     redoc_url=None,
-    openapi_url=None,
+    openapi_url="/api/openapi.json",
 )
+
+app.include_router(laboratory_syntheses_api)
+app.include_router(laboratory_synthesis_users_api)
 
 app.mount(
     "/laboratory_syntheses/static",
@@ -171,7 +179,7 @@ async def laboratory_syntheses_draft(
         select(LaboratorySynthesis)
         .where(
             LaboratorySynthesis.laboratory_synthesis_creator_id
-            == LABORATORY_SYNTHESES_CURRENT_USER_ID,
+            == get_laboratory_synthesis_current_user().laboratory_synthesis_user_id,
             LaboratorySynthesis.laboratory_synthesis_status
             == LaboratorySynthesisStatus.DRAFT,
         )
@@ -313,7 +321,7 @@ async def laboratory_syntheses_create_draft(
         select(LaboratorySynthesis)
         .where(
             LaboratorySynthesis.laboratory_synthesis_creator_id
-            == LABORATORY_SYNTHESES_CURRENT_USER_ID,
+            == get_laboratory_synthesis_current_user().laboratory_synthesis_user_id,
             LaboratorySynthesis.laboratory_synthesis_status
             == LaboratorySynthesisStatus.DRAFT,
         )
@@ -334,7 +342,7 @@ async def laboratory_syntheses_create_draft(
             laboratory_synthesis_duration_minutes=None,
             laboratory_synthesis_temperature_celsius=None,
             laboratory_synthesis_creator_id=(
-                LABORATORY_SYNTHESES_CURRENT_USER_ID
+                get_laboratory_synthesis_current_user().laboratory_synthesis_user_id
             ),
         )
 
@@ -356,7 +364,7 @@ async def laboratory_syntheses_publish_draft(
     ],
     laboratory_synthesis_duration_minutes: Annotated[
         int,
-        Form(ge=1, le=240),
+        Form(ge=1, le=90),
     ],
     laboratory_synthesis_temperature_celsius: Annotated[
         float,
@@ -367,7 +375,7 @@ async def laboratory_syntheses_publish_draft(
         select(LaboratorySynthesis)
         .where(
             LaboratorySynthesis.laboratory_synthesis_creator_id
-            == LABORATORY_SYNTHESES_CURRENT_USER_ID,
+            == get_laboratory_synthesis_current_user().laboratory_synthesis_user_id,
             LaboratorySynthesis.laboratory_synthesis_status
             == LaboratorySynthesisStatus.DRAFT,
         )
@@ -418,31 +426,24 @@ async def laboratory_syntheses_delete(
     laboratory_synthesis_id: int,
     database_session: LaboratorySynthesesDatabaseSession,
 ):
-    delete_query = text(
-        """
-        UPDATE laboratory_syntheses
-        SET laboratory_synthesis_status = 'deleted'
-        WHERE laboratory_synthesis_id = :laboratory_synthesis_id
-          AND laboratory_synthesis_status <> 'deleted'
-        """
+    synthesis = await database_session.scalar(
+        select(LaboratorySynthesis).where(
+            LaboratorySynthesis.laboratory_synthesis_id == laboratory_synthesis_id,
+            LaboratorySynthesis.laboratory_synthesis_status
+            != LaboratorySynthesisStatus.DELETED,
+        ).with_for_update()
     )
-
-    delete_result = await database_session.execute(
-        delete_query,
-        {
-            "laboratory_synthesis_id":
-                laboratory_synthesis_id,
-        },
-    )
-
-    if delete_result.rowcount == 0:
-        await database_session.rollback()
-
+    if synthesis is None:
         raise HTTPException(
             status_code=404,
             detail="Лабораторный синтез не найден",
         )
+    if synthesis.laboratory_synthesis_creator_id != (
+        get_laboratory_synthesis_current_user().laboratory_synthesis_user_id
+    ):
+        raise HTTPException(403, "Удалять можно только собственные синтезы")
 
+    synthesis.laboratory_synthesis_status = LaboratorySynthesisStatus.DELETED
     await database_session.commit()
 
     return RedirectResponse(

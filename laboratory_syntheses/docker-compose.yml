@@ -10,6 +10,11 @@ services:
       POSTGRES_DB: synthesis_db
     volumes:
       - synthesis_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U synthesis_user -d synthesis_db"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
 
   adminer:
     image: adminer:latest
