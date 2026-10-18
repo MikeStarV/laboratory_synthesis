@@ -168,7 +168,7 @@ async def laboratory_syntheses_list(
     session: LaboratorySynthesesSession,
     author: LaboratorySynthesisAuthor,
     laboratory_synthesis_max_duration: Annotated[
-        int | None, Query(ge=1, le=90),
+        int | None, Query(ge=0, le=90),
     ] = None,
 ):
     query = laboratory_syntheses_response_query(author).where(
@@ -259,8 +259,8 @@ async def laboratory_syntheses_save_draft(
     laboratory_synthesis_temperature_celsius: Annotated[
         float, Form(ge=-273.15, allow_inf_nan=False),
     ],
-    laboratory_synthesis_image: Annotated[UploadFile, File()],
-    laboratory_synthesis_video: Annotated[UploadFile, File()],
+    laboratory_synthesis_image: Annotated[UploadFile | None, File()] = None,
+    laboratory_synthesis_video: Annotated[UploadFile | None, File()] = None,
 ):
     form = await request.form()
     allowed = set(LaboratorySynthesisDraftInput.model_fields) | {
@@ -280,11 +280,6 @@ async def laboratory_syntheses_save_draft(
     except ValidationError as error:
         raise RequestValidationError(error.errors()) from error
 
-    # Оба файла проверяются до обращения к MinIO и до изменения БД.
-    image = await read_laboratory_synthesis_upload(laboratory_synthesis_image)
-    video = await read_laboratory_synthesis_upload(
-        laboratory_synthesis_video, video=True,
-    )
     await laboratory_synthesis_author_record(session, author)
     draft = await session.scalar(
         select(LaboratorySynthesis).where(
@@ -295,6 +290,17 @@ async def laboratory_syntheses_save_draft(
         ).with_for_update(),
     )
     created = draft is None
+    # При редактировании можно оставить уже загруженные файлы.
+    # Для нового или перенесённого из ЛР2 черновика нужны оба файла.
+    uploads = {}
+    for kind, upload in (("image", laboratory_synthesis_image),
+                         ("video", laboratory_synthesis_video)):
+        if upload is not None:
+            uploads[kind] = await read_laboratory_synthesis_upload(
+                upload, video=kind == "video",
+            )
+        elif draft is None or not getattr(draft, f"laboratory_synthesis_{kind}_key"):
+            raise HTTPException(422, "Для черновика необходимо загрузить фото и видео")
     old_keys = []
     if draft is None:
         draft = LaboratorySynthesis(
@@ -304,24 +310,21 @@ async def laboratory_syntheses_save_draft(
         )
         session.add(draft)
     else:
-        old_keys = [
-            draft.laboratory_synthesis_image_key, draft.laboratory_synthesis_video_key,
-        ]
+        old_keys = [getattr(draft, f"laboratory_synthesis_{kind}_key")
+                    for kind in uploads]
         for field, value in draft_fields.model_dump().items():
             setattr(draft, field, value)
     try:
-        await run_in_threadpool(storage.put, *image)
-        await run_in_threadpool(storage.put, *video)
-        draft.laboratory_synthesis_image_key = image[0]
-        draft.laboratory_synthesis_video_key = video[0]
-        # Два старых поля оставлены для HTML-шаблонов ЛР2.
-        draft.laboratory_synthesis_image_url = laboratory_synthesis_object_url(image[0])
-        draft.laboratory_synthesis_video_url = laboratory_synthesis_object_url(video[0])
+        for kind, uploaded in uploads.items():
+            await run_in_threadpool(storage.put, *uploaded)
+            setattr(draft, f"laboratory_synthesis_{kind}_key", uploaded[0])
+            setattr(draft, f"laboratory_synthesis_{kind}_url",
+                    laboratory_synthesis_object_url(uploaded[0]))
         await session.commit()
     except (BotoCoreError, ClientError, OSError, SQLAlchemyError) as error:
         await session.rollback()
-        for key in (image[0], video[0]):
-            await run_in_threadpool(storage.delete_safely, key)
+        for uploaded in uploads.values():
+            await run_in_threadpool(storage.delete_safely, uploaded[0])
         if isinstance(error, IntegrityError):
             raise HTTPException(409, "Конфликт сохранения черновика, повторите запрос") from error
         raise HTTPException(503, "Не удалось сохранить синтез в БД или MinIO") from error
@@ -355,8 +358,8 @@ async def laboratory_syntheses_publish(
         synthesis.laboratory_synthesis_name,
         synthesis.laboratory_synthesis_description,
         synthesis.laboratory_synthesis_duration_minutes,
-        synthesis.laboratory_synthesis_image_key or synthesis.laboratory_synthesis_image_url,
-        synthesis.laboratory_synthesis_video_key or synthesis.laboratory_synthesis_video_url,
+        synthesis.laboratory_synthesis_image_key,
+        synthesis.laboratory_synthesis_video_key,
     )
     if not all(required) or synthesis.laboratory_synthesis_temperature_celsius is None:
         raise HTTPException(409, "Перед публикацией заполните все поля и загрузите медиа")
