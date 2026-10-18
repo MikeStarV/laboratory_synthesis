@@ -8,7 +8,6 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .laboratory_syntheses_config import laboratory_syntheses_settings
 from .laboratory_syntheses_database import (
     get_laboratory_syntheses_database_session,
 )
@@ -17,24 +16,18 @@ from .laboratory_syntheses_database_models import (
     LaboratorySynthesisLike,
     LaboratorySynthesisStatus,
 )
-from .laboratory_syntheses_media import LABORATORY_SYNTHESES_DIRECTORY
+from .laboratory_syntheses_media import (
+    LABORATORY_SYNTHESES_DIRECTORY,
+    LABORATORY_SYNTHESES_DEFAULT_IMAGE_URL,
+    LABORATORY_SYNTHESES_DEFAULT_VIDEO_URL,
+    laboratory_synthesis_media_url,
+    get_laboratory_synthesis_display_media,
+    resolve_laboratory_synthesis_media,
+    resolve_laboratory_syntheses_media,
+)
 
 
 LABORATORY_SYNTHESES_CURRENT_USER_ID = 1
-
-LABORATORY_SYNTHESES_MINIO_MEDIA_URL = (
-    f"{laboratory_syntheses_settings.MINIO_ENDPOINT.rstrip('/')}"
-    f"/{laboratory_syntheses_settings.MINIO_BUCKET}"
-)
-
-LABORATORY_SYNTHESES_DEFAULT_IMAGE_URL = (
-    f"{LABORATORY_SYNTHESES_MINIO_MEDIA_URL}/ether_synthesis.jpg"
-)
-
-LABORATORY_SYNTHESES_DEFAULT_VIDEO_URL = (
-    f"{LABORATORY_SYNTHESES_MINIO_MEDIA_URL}/ether_synthesis.mp4"
-)
-
 
 app = FastAPI(
     title="Лабораторные синтезы — расчёт выхода продукта",
@@ -77,7 +70,7 @@ async def laboratory_syntheses_catalog(
     database_session: LaboratorySynthesesDatabaseSession,
     laboratory_synthesis_max_duration: Annotated[
         int | None,
-        Query(ge=1, le=90),
+        Query(ge=0, le=90),
     ] = None,
 ):
     laboratory_syntheses_query = (
@@ -154,6 +147,7 @@ async def laboratory_syntheses_catalog(
         context={
             "laboratory_syntheses_active_page": "catalog",
             "laboratory_syntheses": laboratory_syntheses,
+            "laboratory_syntheses_display_media": await resolve_laboratory_syntheses_media(laboratory_syntheses),
             "laboratory_syntheses_likes":
                 laboratory_syntheses_likes,
             "laboratory_synthesis_max_duration":
@@ -184,6 +178,7 @@ async def laboratory_syntheses_draft(
         context={
             "laboratory_syntheses_active_page": "draft",
             "laboratory_synthesis": laboratory_synthesis,
+            "laboratory_synthesis_display_media": await resolve_laboratory_synthesis_media(laboratory_synthesis),
         },
     )
 
@@ -291,6 +286,7 @@ async def laboratory_syntheses_feed(
         context={
             "laboratory_syntheses_active_page": "feed",
             "laboratory_synthesis": laboratory_synthesis,
+            "laboratory_synthesis_display_media": await resolve_laboratory_synthesis_media(laboratory_synthesis),
             "laboratory_synthesis_likes":
                 laboratory_synthesis_likes or 0,
             "laboratory_synthesis_position":
@@ -326,10 +322,10 @@ async def laboratory_syntheses_create_draft(
             laboratory_synthesis_description=None,
             laboratory_synthesis_status=LaboratorySynthesisStatus.DRAFT,
             laboratory_synthesis_image_url=(
-                LABORATORY_SYNTHESES_DEFAULT_IMAGE_URL
+                laboratory_synthesis_media_url("unavailable_laboratory_synthesis_image.jpg")
             ),
             laboratory_synthesis_video_url=(
-                LABORATORY_SYNTHESES_DEFAULT_VIDEO_URL
+                laboratory_synthesis_media_url("unavailable_laboratory_synthesis_video.mp4")
             ),
             laboratory_synthesis_duration_minutes=None,
             laboratory_synthesis_temperature_celsius=None,
@@ -356,11 +352,11 @@ async def laboratory_syntheses_publish_draft(
     ],
     laboratory_synthesis_duration_minutes: Annotated[
         int,
-        Form(ge=1, le=240),
+        Form(ge=1, le=90),
     ],
     laboratory_synthesis_temperature_celsius: Annotated[
         float,
-        Form(ge=-273.15),
+        Form(ge=-273.15, allow_inf_nan=False),
     ],
 ):
     laboratory_synthesis = await database_session.scalar(
@@ -418,34 +414,42 @@ async def laboratory_syntheses_delete(
     laboratory_synthesis_id: int,
     database_session: LaboratorySynthesesDatabaseSession,
 ):
-    delete_query = text(
-        """
-        UPDATE laboratory_syntheses
-        SET laboratory_synthesis_status = 'deleted'
-        WHERE laboratory_synthesis_id = :laboratory_synthesis_id
-          AND laboratory_synthesis_status <> 'deleted'
-        """
+    """Для ЛР2 удаление выполняется прямым SQL UPDATE, без ORM."""
+    current_user_id = LABORATORY_SYNTHESES_CURRENT_USER_ID
+    parameters = {
+        "laboratory_synthesis_id": laboratory_synthesis_id,
+        "laboratory_synthesis_creator_id": current_user_id,
+    }
+    result = await database_session.execute(
+        text("""
+            UPDATE laboratory_syntheses
+            SET laboratory_synthesis_status = 'deleted'
+            WHERE laboratory_synthesis_id = :laboratory_synthesis_id
+              AND laboratory_synthesis_creator_id = :laboratory_synthesis_creator_id
+              AND laboratory_synthesis_status <> 'deleted'
+        """),
+        parameters,
     )
-
-    delete_result = await database_session.execute(
-        delete_query,
-        {
-            "laboratory_synthesis_id":
-                laboratory_synthesis_id,
-        },
-    )
-
-    if delete_result.rowcount == 0:
-        await database_session.rollback()
-
-        raise HTTPException(
-            status_code=404,
-            detail="Лабораторный синтез не найден",
+    if result.rowcount == 0:
+        owner = await database_session.scalar(
+            text("""
+                SELECT laboratory_synthesis_creator_id
+                FROM laboratory_syntheses
+                WHERE laboratory_synthesis_id = :laboratory_synthesis_id
+                  AND laboratory_synthesis_status <> 'deleted'
+            """),
+            {"laboratory_synthesis_id": laboratory_synthesis_id},
         )
-
+        await database_session.rollback()
+        if owner is not None and owner != current_user_id:
+            raise HTTPException(403, "Удалять можно только собственные синтезы")
+        raise HTTPException(404, "Лабораторный синтез не найден")
     await database_session.commit()
+    return RedirectResponse(url="/laboratory_syntheses", status_code=303)
 
-    return RedirectResponse(
-        url="/laboratory_syntheses",
-        status_code=303,
-    )
+
+laboratory_syntheses_templates.env.globals.update({
+    "laboratory_syntheses_database_enabled": True,
+    "laboratory_syntheses_api_enabled": False,
+    "laboratory_syntheses_current_user_id": 1,
+})
