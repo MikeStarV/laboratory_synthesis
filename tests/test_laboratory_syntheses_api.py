@@ -190,6 +190,31 @@ class LaboratorySynthesesApiTests(unittest.IsolatedAsyncioTestCase):
             row["laboratory_synthesis_id"] for row in (await self.client.get(API)).json()
         ])
 
+    async def test_edit_draft_keeps_media_when_no_files_selected(self):
+        original = (await self.upload()).json()
+        response = await self.client.post(API, data={
+            "laboratory_synthesis_name": "Новое название",
+            "laboratory_synthesis_description": "Новое описание",
+            "laboratory_synthesis_duration_minutes": "90",
+            "laboratory_synthesis_temperature_celsius": "0",
+        })
+        self.assertEqual(response.status_code, 200, response.text)
+        updated = response.json()
+        self.assertEqual(updated["laboratory_synthesis_id"], original["laboratory_synthesis_id"])
+        self.assertEqual(updated["laboratory_synthesis_image_key"], original["laboratory_synthesis_image_key"])
+        self.assertEqual(updated["laboratory_synthesis_video_key"], original["laboratory_synthesis_video_key"])
+        self.assertEqual(len(self.storage.objects), 2)
+
+    async def test_new_draft_requires_both_files(self):
+        response = await self.client.post(API, data={
+            "laboratory_synthesis_name": "Название",
+            "laboratory_synthesis_description": "Описание",
+            "laboratory_synthesis_duration_minutes": "20",
+            "laboratory_synthesis_temperature_celsius": "20",
+        })
+        self.assertEqual(response.status_code, 422)
+        self.assertFalse(self.storage.objects)
+
     async def test_publish_and_create_next_draft(self):
         synthesis_id = (await self.upload()).json()["laboratory_synthesis_id"]
         path = f"{API}/{synthesis_id}/publication"
