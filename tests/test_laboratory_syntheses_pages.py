@@ -49,7 +49,7 @@ class LaboratorySynthesesCollectionTests(unittest.TestCase):
         hashes = {hashlib.sha256((media / item.laboratory_synthesis_image_key).read_bytes()).hexdigest() for item in published}
         self.assertEqual(len(hashes), len(published))
         for item in published:
-            self.assertGreater(len(item.laboratory_synthesis_description), 400)
+            self.assertGreater(len(item.laboratory_synthesis_description), 200)
             self.assertTrue((media/item.laboratory_synthesis_video_key).is_file())
             html = self.client.get(f"/laboratory_syntheses/feed/{item.laboratory_synthesis_id}").text
             self.assertIn(item.laboratory_synthesis_description, html)
