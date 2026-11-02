@@ -66,24 +66,22 @@ if (laboratoryDraft) {
         event.preventDefault();
         const errorBox = laboratoryDraft.querySelector(".form-error");
         errorBox.hidden = true;
-        const action = event.submitter?.value || "save";
+        const publishing = Boolean(laboratoryDraft.dataset.laboratorySynthesisId);
         const buttons = laboratoryDraft.querySelectorAll("button[type=submit]");
         buttons.forEach(button => { button.disabled = true; });
         try {
             const fields = new FormData(laboratoryDraft);
-            fields.delete("laboratory_synthesis_action");
-            for (const [name, value] of [...fields]) {
-                if (value instanceof File && !value.name) fields.delete(name);
-            }
-            const result = await laboratoryRequest(laboratoryDraft.action, {
-                method: "POST", body: fields
-            });
-            if (action === "publish") {
-                await laboratoryRequest(`/api/laboratory_syntheses/${result.laboratory_synthesis_id}/publication`, {
-                    method: "PUT", headers: {"Content-Type": "application/json"}, body: "{}"
+            if (publishing) {
+                const body = Object.fromEntries(["laboratory_synthesis_description",
+                    "laboratory_synthesis_duration_minutes", "laboratory_synthesis_temperature_celsius"]
+                    .map(name => [name, fields.get(name)]));
+                const result = await laboratoryRequest(laboratoryDraft.action, {
+                    method: "PUT", headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify(body)
                 });
                 window.location.assign(`/laboratory_syntheses/feed/${result.laboratory_synthesis_id}`);
             } else {
+                await laboratoryRequest(laboratoryDraft.action, {method: "POST", body: fields});
                 window.location.assign("/laboratory_syntheses/draft");
             }
         } catch (error) {

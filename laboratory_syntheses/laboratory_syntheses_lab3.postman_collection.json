@@ -1,0 +1,27 @@
+{
+  "info": {
+    "name": "ЛР3 — лабораторные синтезы (10 методов)",
+    "description": "Лента — один метод GET с двумя URL. Запрос «Лента» использует /feed; для карточки по ID замените URL на /feed/{{laboratory_synthesis_id}}, а для следующей добавьте ?next=true. Автор ЛР3 фиксирован: пользователь 1. Выполняйте создание только после публикации или удаления текущего черновика.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {"key": "base_url", "value": "http://localhost:8000"},
+    {"key": "laboratory_synthesis_id", "value": "1"}
+  ],
+  "item": [
+    {"name": "1. Каталог (фильтр длительности)", "request": {"method": "GET", "url": "{{base_url}}/api/laboratory_syntheses?laboratory_synthesis_max_duration=45"}},
+    {"name": "2. Лента (без ID / по ID / next=true)", "request": {"method": "GET", "url": "{{base_url}}/api/laboratory_syntheses/feed", "description": "По ID: {{base_url}}/api/laboratory_syntheses/feed/{{laboratory_synthesis_id}}; следующая: тот же URL с ?next=true."}},
+    {"name": "3. Мой черновик", "request": {"method": "GET", "url": "{{base_url}}/api/laboratory_syntheses/draft"}},
+    {"name": "4. Создать черновик с файлами", "request": {"method": "POST", "url": "{{base_url}}/api/laboratory_syntheses", "body": {"mode": "formdata", "formdata": [
+      {"key": "laboratory_synthesis_name", "value": "Тестовый синтез ЛР3", "type": "text"},
+      {"key": "laboratory_synthesis_image", "type": "file", "src": ""},
+      {"key": "laboratory_synthesis_video", "type": "file", "src": ""}
+    ]}}},
+    {"name": "5. Опубликовать мой черновик", "request": {"method": "PUT", "url": "{{base_url}}/api/laboratory_syntheses/draft/publication", "header": [{"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\"laboratory_synthesis_description\":\"Проверка публикации\",\"laboratory_synthesis_duration_minutes\":25,\"laboratory_synthesis_temperature_celsius\":22}"}}},
+    {"name": "6. Логически удалить свой синтез", "request": {"method": "DELETE", "url": "{{base_url}}/api/laboratory_syntheses/{{laboratory_synthesis_id}}"}},
+    {"name": "7. Поставить / снять лайк", "request": {"method": "POST", "url": "{{base_url}}/api/laboratory_syntheses/{{laboratory_synthesis_id}}/likes", "header": [{"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\"laboratory_synthesis_liked\":1}", "options": {"raw": {"language": "json"}}}, "description": "Для отмены замените 1 на 0."}},
+    {"name": "8. Зарегистрировать пользователя", "request": {"method": "POST", "url": "{{base_url}}/api/laboratory_synthesis_users", "header": [{"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\"laboratory_synthesis_user_name\":\"lab3_test_user\",\"laboratory_synthesis_user_password\":\"example-password-123\"}"}}},
+    {"name": "9. Вход (заглушка ЛР4)", "request": {"method": "POST", "url": "{{base_url}}/api/laboratory_synthesis_users/login", "description": "Ожидается 501."}},
+    {"name": "10. Выход (заглушка ЛР4)", "request": {"method": "POST", "url": "{{base_url}}/api/laboratory_synthesis_users/logout", "description": "Ожидается 501."}}
+  ]
+}

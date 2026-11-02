@@ -14,15 +14,14 @@ class LaboratorySynthesisInput(BaseModel):
 
 class LaboratorySynthesisDraftInput(LaboratorySynthesisInput):
     laboratory_synthesis_name: str = Field(min_length=1, max_length=120)
+
+
+class LaboratorySynthesisPublicationInput(LaboratorySynthesisInput):
     laboratory_synthesis_description: str = Field(min_length=1, max_length=5000)
     laboratory_synthesis_duration_minutes: int = Field(ge=1, le=90)
     laboratory_synthesis_temperature_celsius: float = Field(
         ge=-273.15, allow_inf_nan=False,
     )
-
-
-class LaboratorySynthesisPublicationInput(LaboratorySynthesisInput):
-    """Публикация не принимает статус, автора, даты или другие поля."""
 
 
 class LaboratorySynthesisLikeInput(LaboratorySynthesisInput):
