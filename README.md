@@ -19,8 +19,6 @@
 
 Сначала POST создаёт черновик с тремя полями `multipart/form-data`: `laboratory_synthesis_name`, `laboratory_synthesis_image` (JPEG/PNG/WebP), `laboratory_synthesis_video` (MP4/WebM). Затем GET `/draft` возвращает черновик, а PUT `/draft/publication` принимает только `laboratory_synthesis_description`, `laboratory_synthesis_duration_minutes` и `laboratory_synthesis_temperature_celsius` в JSON. ID, автор, статус, даты и ключи файлов назначает сервер. Повторный POST при наличии черновика возвращает 409; повторный PUT после публикации тоже возвращает 409. Файлы сохраняются в MinIO, ключи и ссылки — в PostgreSQL. Автор ЛР3 фиксирован через singleton как пользователь 1; полноценные вход и выход относятся к ЛР4.
 
-Диаграмма классов: `laboratory_syntheses/laboratory_syntheses_lab3.drawio`. Открывается в draw.io.
-
 ## Таблицы БД
 
 ### `laboratory_syntheses`
