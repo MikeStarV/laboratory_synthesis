@@ -2,12 +2,16 @@ from pathlib import Path
 from urllib.parse import quote
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field
 
 
 LABORATORY_SYNTHESES_DIRECTORY = Path(__file__).resolve().parent
 
 
 class LaboratorySynthesesSettings(BaseSettings):
+    REDIS_URL: str = "redis://localhost:6380/0"
+    SESSION_TTL_SECONDS: int = Field(default=900, ge=60, le=604800)
+    SESSION_COOKIE_SECURE: bool = False
     MINIO_ENDPOINT: str
     MINIO_BUCKET: str
     MINIO_ACCESS_KEY: str

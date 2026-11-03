@@ -1,11 +1,9 @@
-from datetime import datetime, timezone
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, Form, HTTPException, Query, Request
-from fastapi.responses import RedirectResponse
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import func, select, text
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .laboratory_syntheses_api import (
@@ -13,7 +11,8 @@ from .laboratory_syntheses_api import (
     laboratory_synthesis_users_api,
 )
 from .laboratory_syntheses_current_user import (
-    get_laboratory_synthesis_current_user,
+    get_laboratory_synthesis_current_user, get_optional_laboratory_synthesis_user,
+    LaboratorySynthesisCurrentUser,
 )
 from .laboratory_syntheses_database import (
     get_laboratory_syntheses_database_session,
@@ -27,8 +26,6 @@ from .laboratory_syntheses_media import (
     LABORATORY_SYNTHESES_DIRECTORY,
     LABORATORY_SYNTHESES_DEFAULT_IMAGE_URL,
     LABORATORY_SYNTHESES_DEFAULT_VIDEO_URL,
-    laboratory_synthesis_media_url,
-    get_laboratory_synthesis_display_media,
     resolve_laboratory_synthesis_media,
     resolve_laboratory_syntheses_media,
 )
@@ -36,6 +33,9 @@ from .laboratory_syntheses_media import (
 
 app = FastAPI(
     title="Лабораторные синтезы — расчёт выхода продукта",
+    version="4.0.0",
+    description="ЛР4. Войдите через POST /api/laboratory_synthesis_users/login: браузер сохранит HttpOnly cookie автоматически. Каталог и лента доступны гостю. Черновик и изменения требуют сессии.",
+    swagger_ui_parameters={"withCredentials": True},
     docs_url="/api/docs",
     redoc_url=None,
     openapi_url="/api/openapi.json",
@@ -76,6 +76,7 @@ LaboratorySynthesesDatabaseSession = Annotated[
 async def laboratory_syntheses_catalog(
     request: Request,
     database_session: LaboratorySynthesesDatabaseSession,
+    author: Annotated[LaboratorySynthesisCurrentUser, Depends(get_optional_laboratory_synthesis_user)],
     laboratory_synthesis_max_duration: Annotated[
         int | None,
         Query(ge=0, le=90),
@@ -153,6 +154,7 @@ async def laboratory_syntheses_catalog(
         request=request,
         name="laboratory_syntheses_catalog.html",
         context={
+            "laboratory_syntheses_current_user_id": author.laboratory_synthesis_user_id,
             "laboratory_syntheses_active_page": "catalog",
             "laboratory_syntheses": laboratory_syntheses,
             "laboratory_syntheses_display_media": await resolve_laboratory_syntheses_media(laboratory_syntheses),
@@ -168,12 +170,13 @@ async def laboratory_syntheses_catalog(
 async def laboratory_syntheses_draft(
     request: Request,
     database_session: LaboratorySynthesesDatabaseSession,
+    author: Annotated[LaboratorySynthesisCurrentUser, Depends(get_laboratory_synthesis_current_user)],
 ):
     laboratory_synthesis = await database_session.scalar(
         select(LaboratorySynthesis)
         .where(
             LaboratorySynthesis.laboratory_synthesis_creator_id
-            == get_laboratory_synthesis_current_user().laboratory_synthesis_user_id,
+            == author.laboratory_synthesis_user_id,
             LaboratorySynthesis.laboratory_synthesis_status
             == LaboratorySynthesisStatus.DRAFT,
         )
@@ -184,6 +187,7 @@ async def laboratory_syntheses_draft(
         request=request,
         name="laboratory_syntheses_draft.html",
         context={
+            "laboratory_syntheses_current_user_id": author.laboratory_synthesis_user_id,
             "laboratory_syntheses_active_page": "draft",
             "laboratory_synthesis": laboratory_synthesis,
             "laboratory_synthesis_display_media": await resolve_laboratory_synthesis_media(laboratory_synthesis),
@@ -196,6 +200,7 @@ async def laboratory_syntheses_draft(
 async def laboratory_syntheses_feed(
     request: Request,
     database_session: LaboratorySynthesesDatabaseSession,
+    author: Annotated[LaboratorySynthesisCurrentUser, Depends(get_optional_laboratory_synthesis_user)],
     laboratory_synthesis_id: int | None = None,
     laboratory_synthesis_next: Annotated[
         bool,
@@ -292,13 +297,14 @@ async def laboratory_syntheses_feed(
         select(func.count()).select_from(LaboratorySynthesisLike).where(
             LaboratorySynthesisLike.laboratory_synthesis_id == laboratory_synthesis.laboratory_synthesis_id,
             LaboratorySynthesisLike.laboratory_synthesis_user_id
-            == get_laboratory_synthesis_current_user().laboratory_synthesis_user_id,
+            == author.laboratory_synthesis_user_id,
         )
     ))
     return laboratory_syntheses_templates.TemplateResponse(
         request=request,
         name="laboratory_syntheses_feed.html",
         context={
+            "laboratory_syntheses_current_user_id": author.laboratory_synthesis_user_id,
             "laboratory_syntheses_active_page": "feed",
             "laboratory_synthesis": laboratory_synthesis,
             "laboratory_synthesis_display_media": await resolve_laboratory_synthesis_media(laboratory_synthesis),
@@ -313,159 +319,7 @@ async def laboratory_syntheses_feed(
     )
 
 
-@app.post("/laboratory_syntheses/draft")
-async def laboratory_syntheses_create_draft(
-    database_session: LaboratorySynthesesDatabaseSession,
-    laboratory_synthesis_name: Annotated[
-        str,
-        Form(min_length=1, max_length=120),
-    ],
-):
-    existing_draft = await database_session.scalar(
-        select(LaboratorySynthesis)
-        .where(
-            LaboratorySynthesis.laboratory_synthesis_creator_id
-            == get_laboratory_synthesis_current_user().laboratory_synthesis_user_id,
-            LaboratorySynthesis.laboratory_synthesis_status
-            == LaboratorySynthesisStatus.DRAFT,
-        )
-        .limit(1)
-    )
-
-    if existing_draft is None:
-        laboratory_synthesis = LaboratorySynthesis(
-            laboratory_synthesis_name=laboratory_synthesis_name,
-            laboratory_synthesis_description=None,
-            laboratory_synthesis_status=LaboratorySynthesisStatus.DRAFT,
-            laboratory_synthesis_image_url=(
-                laboratory_synthesis_media_url("unavailable_laboratory_synthesis_image.jpg")
-            ),
-            laboratory_synthesis_video_url=(
-                laboratory_synthesis_media_url("unavailable_laboratory_synthesis_video.mp4")
-            ),
-            laboratory_synthesis_duration_minutes=None,
-            laboratory_synthesis_temperature_celsius=None,
-            laboratory_synthesis_creator_id=(
-                get_laboratory_synthesis_current_user().laboratory_synthesis_user_id
-            ),
-        )
-
-        database_session.add(laboratory_synthesis)
-        await database_session.commit()
-
-    return RedirectResponse(
-        url="/laboratory_syntheses/draft",
-        status_code=303,
-    )
-
-
-@app.post("/laboratory_syntheses/draft/publish")
-async def laboratory_syntheses_publish_draft(
-    database_session: LaboratorySynthesesDatabaseSession,
-    laboratory_synthesis_description: Annotated[
-        str,
-        Form(min_length=1),
-    ],
-    laboratory_synthesis_duration_minutes: Annotated[
-        int,
-        Form(ge=1, le=90),
-    ],
-    laboratory_synthesis_temperature_celsius: Annotated[
-        float,
-        Form(ge=-273.15, allow_inf_nan=False),
-    ],
-):
-    laboratory_synthesis = await database_session.scalar(
-        select(LaboratorySynthesis)
-        .where(
-            LaboratorySynthesis.laboratory_synthesis_creator_id
-            == get_laboratory_synthesis_current_user().laboratory_synthesis_user_id,
-            LaboratorySynthesis.laboratory_synthesis_status
-            == LaboratorySynthesisStatus.DRAFT,
-        )
-        .limit(1)
-    )
-
-    if laboratory_synthesis is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Черновик лабораторного синтеза отсутствует",
-        )
-
-    laboratory_synthesis.laboratory_synthesis_description = (
-        laboratory_synthesis_description
-    )
-
-    laboratory_synthesis.laboratory_synthesis_duration_minutes = (
-        laboratory_synthesis_duration_minutes
-    )
-
-    laboratory_synthesis.laboratory_synthesis_temperature_celsius = (
-        laboratory_synthesis_temperature_celsius
-    )
-
-    laboratory_synthesis.laboratory_synthesis_status = (
-        LaboratorySynthesisStatus.PUBLISHED
-    )
-
-    laboratory_synthesis.laboratory_synthesis_formed_at = (
-        datetime.now(timezone.utc)
-    )
-
-    await database_session.commit()
-
-    return RedirectResponse(
-        url=(
-            "/laboratory_syntheses/feed/"
-            f"{laboratory_synthesis.laboratory_synthesis_id}"
-        ),
-        status_code=303,
-    )
-
-
-@app.post(
-    "/laboratory_syntheses/{laboratory_synthesis_id}/delete"
-)
-async def laboratory_syntheses_delete(
-    laboratory_synthesis_id: int,
-    database_session: LaboratorySynthesesDatabaseSession,
-):
-    """Для ЛР2 удаление выполняется прямым SQL UPDATE, без ORM."""
-    current_user_id = get_laboratory_synthesis_current_user().laboratory_synthesis_user_id
-    parameters = {
-        "laboratory_synthesis_id": laboratory_synthesis_id,
-        "laboratory_synthesis_creator_id": current_user_id,
-    }
-    result = await database_session.execute(
-        text("""
-            UPDATE laboratory_syntheses
-            SET laboratory_synthesis_status = 'deleted'
-            WHERE laboratory_synthesis_id = :laboratory_synthesis_id
-              AND laboratory_synthesis_creator_id = :laboratory_synthesis_creator_id
-              AND laboratory_synthesis_status <> 'deleted'
-        """),
-        parameters,
-    )
-    if result.rowcount == 0:
-        owner = await database_session.scalar(
-            text("""
-                SELECT laboratory_synthesis_creator_id
-                FROM laboratory_syntheses
-                WHERE laboratory_synthesis_id = :laboratory_synthesis_id
-                  AND laboratory_synthesis_status <> 'deleted'
-            """),
-            {"laboratory_synthesis_id": laboratory_synthesis_id},
-        )
-        await database_session.rollback()
-        if owner is not None and owner != current_user_id:
-            raise HTTPException(403, "Удалять можно только собственные синтезы")
-        raise HTTPException(404, "Лабораторный синтез не найден")
-    await database_session.commit()
-    return RedirectResponse(url="/laboratory_syntheses", status_code=303)
-
-
 laboratory_syntheses_templates.env.globals.update({
     "laboratory_syntheses_database_enabled": True,
     "laboratory_syntheses_api_enabled": True,
-    "laboratory_syntheses_current_user_id": get_laboratory_synthesis_current_user().laboratory_synthesis_user_id,
 })

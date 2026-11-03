@@ -1,4 +1,4 @@
-"""JSON API ЛР3: каталог, лента, черновик, публикация, удаление и лайки."""
+"""JSON API ЛР4: бизнес-логика ЛР3 с сессиями Redis и доступом по cookie."""
 
 import hashlib
 import secrets
@@ -16,9 +16,12 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
+from redis.exceptions import RedisError
+from .laboratory_syntheses_config import laboratory_syntheses_settings as settings
 
 from .laboratory_syntheses_current_user import (
     LaboratorySynthesisCurrentUser, get_laboratory_synthesis_current_user,
+    get_optional_laboratory_synthesis_user, get_laboratory_synthesis_redis,
 )
 from .laboratory_syntheses_database import get_laboratory_syntheses_database_session
 from .laboratory_syntheses_database_models import (
@@ -38,6 +41,11 @@ from .laboratory_syntheses_storage import (
 
 laboratory_syntheses_api = APIRouter(
     prefix="/api/laboratory_syntheses", tags=["Лабораторные синтезы"],
+    responses={401: {"description": "Требуется действующая сессия"},
+               403: {"description": "Чужая запись"},
+               404: {"description": "Запись не найдена"},
+               409: {"description": "Конфликт состояния"},
+               503: {"description": "БД, Redis или MinIO недоступны"}},
 )
 laboratory_synthesis_users_api = APIRouter(
     prefix="/api/laboratory_synthesis_users", tags=["Пользователи синтезов"],
@@ -47,6 +55,9 @@ LaboratorySynthesesSession = Annotated[
 ]
 LaboratorySynthesisAuthor = Annotated[
     LaboratorySynthesisCurrentUser, Depends(get_laboratory_synthesis_current_user),
+]
+LaboratorySynthesisViewer = Annotated[
+    LaboratorySynthesisCurrentUser, Depends(get_optional_laboratory_synthesis_user),
 ]
 LaboratorySynthesisStorage = Annotated[
     LaboratorySynthesisMediaStorage, Depends(get_laboratory_synthesis_media_storage),
@@ -166,11 +177,12 @@ async def owned_laboratory_synthesis(session, author, synthesis_id):
 @laboratory_syntheses_api.get("", response_model=list[LaboratorySynthesisResponse])
 async def laboratory_syntheses_list(
     session: LaboratorySynthesesSession,
-    author: LaboratorySynthesisAuthor,
+    author: LaboratorySynthesisViewer,
     laboratory_synthesis_max_duration: Annotated[
         int | None, Query(ge=0, le=90),
     ] = None,
 ):
+    """Опубликованные синтезы с фильтром длительности. Доступно гостю; признак автора зависит от сессии."""
     query = laboratory_syntheses_response_query(author).where(
         LaboratorySynthesis.laboratory_synthesis_status
         == LaboratorySynthesisStatus.PUBLISHED,
@@ -190,6 +202,7 @@ async def laboratory_syntheses_list(
 async def laboratory_syntheses_get_draft(
     session: LaboratorySynthesesSession, author: LaboratorySynthesisAuthor,
 ):
+    """Единственный черновик текущего пользователя; ID пользователя берётся из сессии Redis."""
     rows = await session.execute(
         laboratory_syntheses_response_query(author).where(
             LaboratorySynthesis.laboratory_synthesis_creator_id
@@ -210,10 +223,11 @@ async def laboratory_syntheses_get_draft(
 )
 async def laboratory_syntheses_get_feed(
     session: LaboratorySynthesesSession,
-    author: LaboratorySynthesisAuthor,
+    author: LaboratorySynthesisViewer,
     laboratory_synthesis_id: int | None = None,
     laboratory_synthesis_next: Annotated[bool, Query(alias="next")] = False,
 ):
+    """Одна опубликованная карточка и признак лайка. next=true переключает на следующую с возвратом к первой."""
     if laboratory_synthesis_id is not None and laboratory_synthesis_id < 1:
         raise HTTPException(422, "Идентификатор синтеза должен быть положительным")
     published = laboratory_syntheses_response_query(author).where(
@@ -253,6 +267,7 @@ async def laboratory_syntheses_save_draft(
     laboratory_synthesis_image: Annotated[UploadFile, File()],
     laboratory_synthesis_video: Annotated[UploadFile, File()],
 ):
+    """Создать свой черновик с фото и видео в MinIO. Автор, статус и даты назначаются сервером."""
     form = await request.form()
     allowed = set(LaboratorySynthesisDraftInput.model_fields) | {
         "laboratory_synthesis_image", "laboratory_synthesis_video",
@@ -317,6 +332,7 @@ async def laboratory_syntheses_publish(
     author: LaboratorySynthesisAuthor,
     publication: LaboratorySynthesisPublicationInput,
 ):
+    """Опубликовать свой черновик, задав описание, длительность и температуру. Повторная публикация запрещена."""
     await laboratory_synthesis_author_record(session, author)
     synthesis = await session.scalar(
         select(LaboratorySynthesis).where(
@@ -347,6 +363,7 @@ async def laboratory_syntheses_remove(
     session: LaboratorySynthesesSession,
     author: LaboratorySynthesisAuthor,
 ):
+    """Логически удалить свой синтез. Чужая запись возвращает 403; физического удаления нет."""
     synthesis = await owned_laboratory_synthesis(
         session, author, laboratory_synthesis_id,
     )
@@ -364,6 +381,7 @@ async def laboratory_syntheses_set_like(
     session: LaboratorySynthesesSession,
     author: LaboratorySynthesisAuthor,
 ):
+    """Поставить (1) или снять (0) собственный лайк опубликованного синтеза; повторный вызов идемпотентен."""
     synthesis = await session.scalar(
         select(LaboratorySynthesis).where(
             LaboratorySynthesis.laboratory_synthesis_id == laboratory_synthesis_id,
@@ -407,6 +425,7 @@ def hash_laboratory_synthesis_password(password: str) -> str:
 async def laboratory_synthesis_users_register(
     body: LaboratorySynthesisRegistrationInput, session: LaboratorySynthesesSession,
 ):
+    """Создать пользователя. Пароль хранится как PBKDF2-SHA256 с солью и не возвращается в ответе."""
     password_hash = await run_in_threadpool(
         hash_laboratory_synthesis_password,
         body.laboratory_synthesis_user_password.get_secret_value(),
@@ -424,11 +443,75 @@ async def laboratory_synthesis_users_register(
     return user
 
 
-@laboratory_synthesis_users_api.post("/login", status_code=501)
-async def laboratory_synthesis_users_login():
-    raise HTTPException(501, "Заглушка ЛР3. Аутентификация появится в ЛР4.")
+def verify_laboratory_synthesis_password(password: str, stored: str | None) -> bool:
+    if not stored:
+        return False
+    try:
+        algorithm, rounds, salt, expected = stored.split("$")
+        if algorithm != "pbkdf2_sha256" or int(rounds) != 600_000:
+            return False
+        digest = hashlib.pbkdf2_hmac(
+            "sha256", password.encode("utf-8"), bytes.fromhex(salt), int(rounds),
+        ).hex()
+        return secrets.compare_digest(digest, expected)
+    except (ValueError, TypeError):
+        return False
 
 
-@laboratory_synthesis_users_api.post("/logout", status_code=501)
-async def laboratory_synthesis_users_logout():
-    raise HTTPException(501, "Заглушка ЛР3. Завершение сессии появится в ЛР4.")
+@laboratory_synthesis_users_api.post(
+    "/login", response_model=LaboratorySynthesisUserResponse,
+    summary="Вход: создать сессию Redis и установить HttpOnly cookie",
+    responses={401: {"description": "Неверное имя или пароль"},
+               503: {"description": "Redis недоступен"}},
+)
+async def laboratory_synthesis_users_login(
+    request: Request, response: Response,
+    body: LaboratorySynthesisRegistrationInput, session: LaboratorySynthesesSession,
+    redis=Depends(get_laboratory_synthesis_redis),
+):
+    user = await session.scalar(select(LaboratorySynthesisUser).where(
+        LaboratorySynthesisUser.laboratory_synthesis_user_name
+        == body.laboratory_synthesis_user_name,
+    ))
+    # Выполняем PBKDF2 и для неизвестного имени, чтобы не выдавать его по времени ответа.
+    stored = user.laboratory_synthesis_user_password_hash if user else None
+    dummy = "pbkdf2_sha256$600000$" + "00" * 16 + "$" + "00" * 32
+    valid = await run_in_threadpool(verify_laboratory_synthesis_password,
+        body.laboratory_synthesis_user_password.get_secret_value(), stored or dummy)
+    if user is None or not stored or not valid:
+        raise HTTPException(401, "Неверное имя пользователя или пароль")
+    session_id = secrets.token_urlsafe(32)
+    try:
+        # Единая транзакция: прежняя сессия этого браузера перестаёт действовать.
+        async with redis.pipeline(transaction=True) as pipe:
+            old = request.cookies.get("session_id")
+            if old and len(old) <= 128:
+                pipe.delete(f"session:{old}")
+            pipe.setex(f"session:{session_id}", settings.SESSION_TTL_SECONDS,
+                       user.laboratory_synthesis_user_id)
+            await pipe.execute()
+    except RedisError as error:
+        raise HTTPException(503, "Хранилище сессий временно недоступно") from error
+    response.set_cookie("session_id", session_id,
+        max_age=settings.SESSION_TTL_SECONDS, httponly=True,
+        secure=settings.SESSION_COOKIE_SECURE, samesite="lax", path="/")
+    return user
+
+
+@laboratory_synthesis_users_api.post(
+    "/logout", status_code=204, summary="Выход: удалить сессию Redis и cookie",
+    responses={503: {"description": "Redis недоступен; выход не завершён"}},
+)
+async def laboratory_synthesis_users_logout(
+    request: Request, redis=Depends(get_laboratory_synthesis_redis),
+):
+    session_id = request.cookies.get("session_id")
+    if session_id and len(session_id) <= 128:
+        try:
+            await redis.delete(f"session:{session_id}")
+        except RedisError as error:
+            raise HTTPException(503, "Не удалось завершить сессию") from error
+    response = Response(status_code=204)
+    response.delete_cookie("session_id", path="/", httponly=True,
+                           secure=settings.SESSION_COOKIE_SECURE, samesite="lax")
+    return response

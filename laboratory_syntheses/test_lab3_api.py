@@ -5,7 +5,7 @@ from tempfile import SpooledTemporaryFile
 
 import pytest
 from fastapi import HTTPException
-from starlette.datastructures import UploadFile
+from starlette.datastructures import Headers, UploadFile
 
 from laboratory_syntheses.laboratory_syntheses_app import app
 from laboratory_syntheses import laboratory_syntheses_api as api
@@ -32,13 +32,6 @@ def test_openapi_has_ten_methods_and_two_feed_routes():
     assert set(props) == {"laboratory_synthesis_name", "laboratory_synthesis_image", "laboratory_synthesis_video"}
     publish = spec["paths"]["/api/laboratory_syntheses/draft/publication"]["put"]
     assert publish["requestBody"]["required"]
-
-
-def test_invalid_fields_and_auth_stubs():
-    for stub in (api.laboratory_synthesis_users_login, api.laboratory_synthesis_users_logout):
-        with pytest.raises(HTTPException) as error:
-            asyncio.run(stub())
-        assert error.value.status_code == 501
 
 
 def test_publication_input_rejects_system_fields():
@@ -110,7 +103,9 @@ def test_create_rolls_back_and_cleans_uploaded_files(monkeypatch):
             file = SpooledTemporaryFile()
             file.write(payload)
             file.seek(0)
-            return UploadFile(file, filename=filename)
+            return UploadFile(file, filename=filename, headers=Headers({
+                "content-type": "image/png" if filename.endswith(".png") else "video/mp4",
+            }))
         return await api.laboratory_syntheses_save_draft(
             Request(), session, LaboratorySynthesisCurrentUser(1), storage, "Тест",
             upload(b"\x89PNG\r\n\x1a\nimage", "photo.png"),

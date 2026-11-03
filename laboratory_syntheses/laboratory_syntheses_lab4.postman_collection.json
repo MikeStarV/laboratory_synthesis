@@ -1,0 +1,394 @@
+{
+  "info": {
+    "name": "ЛР4 — синтезы и сессии Redis",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Сценарий LAB4_DEMO.md. Для гостевых запросов отключён cookie jar. Выберите два файла для создания черновика."
+  },
+  "item": [
+    {
+      "name": "1. Регистрация",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/laboratory_synthesis_users",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"laboratory_synthesis_user_name\": \"{{username}}\",\n  \"laboratory_synthesis_user_password\": \"{{password}}\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Вход",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/laboratory_synthesis_users/login",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"laboratory_synthesis_user_name\": \"{{username}}\",\n  \"laboratory_synthesis_user_password\": \"{{password}}\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const h = pm.response.headers.get(\"Set-Cookie\") || \"\"; const m = h.match(/session_id=([^;]+)/); if (m) pm.collectionVariables.set(\"session_id\", m[1]);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Каталог с cookie",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Cookie",
+            "value": "session_id={{session_id}}"
+          }
+        ],
+        "url": "{{base_url}}/api/laboratory_syntheses?laboratory_synthesis_max_duration=45"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Каталог гостя",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/api/laboratory_syntheses"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ],
+      "protocolProfileBehavior": {
+        "disableCookies": true
+      }
+    },
+    {
+      "name": "5. Создать черновик — выбрать файлы",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Cookie",
+            "value": "session_id={{session_id}}"
+          }
+        ],
+        "url": "{{base_url}}/api/laboratory_syntheses",
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "laboratory_synthesis_name",
+              "type": "text",
+              "value": "Демонстрация ЛР4"
+            },
+            {
+              "key": "laboratory_synthesis_image",
+              "type": "file",
+              "src": ""
+            },
+            {
+              "key": "laboratory_synthesis_video",
+              "type": "file",
+              "src": ""
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+              "if (pm.response.code === 201) pm.collectionVariables.set(\"synthesis_id\", pm.response.json().laboratory_synthesis_id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Свой черновик",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Cookie",
+            "value": "session_id={{session_id}}"
+          }
+        ],
+        "url": "{{base_url}}/api/laboratory_syntheses/draft"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Публикация гостем — 401",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/laboratory_syntheses/draft/publication",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"laboratory_synthesis_description\": \"Учебный синтез\",\n  \"laboratory_synthesis_duration_minutes\": 20,\n  \"laboratory_synthesis_temperature_celsius\": 25\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));"
+            ]
+          }
+        }
+      ],
+      "protocolProfileBehavior": {
+        "disableCookies": true
+      }
+    },
+    {
+      "name": "8. Публикация автором",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Cookie",
+            "value": "session_id={{session_id}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/laboratory_syntheses/draft/publication",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"laboratory_synthesis_description\": \"Учебный синтез\",\n  \"laboratory_synthesis_duration_minutes\": 20,\n  \"laboratory_synthesis_temperature_celsius\": 25\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "9. Лента",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Cookie",
+            "value": "session_id={{session_id}}"
+          }
+        ],
+        "url": "{{base_url}}/api/laboratory_syntheses/feed"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "10. Следующая карточка",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Cookie",
+            "value": "session_id={{session_id}}"
+          }
+        ],
+        "url": "{{base_url}}/api/laboratory_syntheses/feed/{{synthesis_id}}?next=true"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "11. Лайк",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Cookie",
+            "value": "session_id={{session_id}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/laboratory_syntheses/{{synthesis_id}}/likes",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"laboratory_synthesis_liked\": 1\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "12. Выход",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Cookie",
+            "value": "session_id={{session_id}}"
+          }
+        ],
+        "url": "{{base_url}}/api/laboratory_synthesis_users/logout"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 204\", () => pm.response.to.have.status(204));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "13. Старая cookie после выхода — 401",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Cookie",
+            "value": "session_id={{session_id}}"
+          }
+        ],
+        "url": "{{base_url}}/api/laboratory_syntheses/draft"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8000"
+    },
+    {
+      "key": "session_id",
+      "value": ""
+    },
+    {
+      "key": "synthesis_id",
+      "value": "1"
+    },
+    {
+      "key": "username",
+      "value": "lab4_author"
+    },
+    {
+      "key": "password",
+      "value": "Lab4-password-123"
+    }
+  ]
+}
